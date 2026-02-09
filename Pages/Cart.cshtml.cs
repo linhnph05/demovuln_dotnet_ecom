@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Data.Sqlite;
-using System.Text.Json;
+using Newtonsoft.Json;
 using WebApp1.Models;
 
 namespace WebApp1.Pages;
@@ -30,7 +30,11 @@ public class CartModel : PageModel
         {
             try
             {
-                CartItems = JsonSerializer.Deserialize<List<CartItem>>(cartCookie) ?? new List<CartItem>();
+                var settings = new JsonSerializerSettings
+                {
+                    TypeNameHandling = TypeNameHandling.All
+                };
+                CartItems = JsonConvert.DeserializeObject<List<CartItem>>(cartCookie, settings) ?? new List<CartItem>();
             }
             catch
             {
@@ -87,12 +91,16 @@ public class CartModel : PageModel
 
     private void SaveCart()
     {
-        var json = JsonSerializer.Serialize(CartItems);
+        var settings = new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.All
+        };
+        var json = JsonConvert.SerializeObject(CartItems, settings);
         Response.Cookies.Append("ShoppingCart", json, new CookieOptions
         {
-            Expires = DateTimeOffset.Now.AddDays(7),
-            HttpOnly = true
+            Expires = DateTimeOffset.Now.AddDays(7)
         });
     }
 }
+
 
