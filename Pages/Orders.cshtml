@@ -1,0 +1,47 @@
+@page
+@model OrdersModel
+@{
+    ViewData["Title"] = "My Orders";
+}
+
+<h1>My Orders</h1>
+
+@if (Model.Orders.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Shipping Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.Orders)
+                {
+                    <tr>
+                        <td>@order.Id</td>
+                        <td>@order.OrderDate.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>$@order.TotalAmount</td>
+                        <td>
+                            <span class="badge bg-@(order.Status == "Completed" ? "success" : order.Status == "Pending" ? "warning" : "secondary")">
+                                @order.Status
+                            </span>
+                        </td>
+                        <td>@order.ShippingAddress</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <p>You haven't placed any orders yet.</p>
+        <a href="/Products" class="btn btn-primary">Start Shopping</a>
+    </div>
+}

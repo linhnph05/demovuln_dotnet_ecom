@@ -13,12 +13,29 @@ public class ImportProductsModel : PageModel
     public List<Product> ImportedProducts { get; set; } = new();
     public string? ErrorMessage { get; set; }
 
-    public void OnGet()
+    public IActionResult OnGet()
     {
+        var username = HttpContext.Session.GetString("Username");
+        var isAdmin = HttpContext.Session.GetString("IsAdmin");
+
+        if (string.IsNullOrEmpty(username) || isAdmin != "True")
+        {
+            return RedirectToPage("/Login");
+        }
+
+        return Page();
     }
 
-    public void OnPost()
+    public IActionResult OnPost()
     {
+        var username = HttpContext.Session.GetString("Username");
+        var isAdmin = HttpContext.Session.GetString("IsAdmin");
+
+        if (string.IsNullOrEmpty(username) || isAdmin != "True")
+        {
+            return RedirectToPage("/Login");
+        }
+
         if (!string.IsNullOrEmpty(XmlData))
         {
             try
@@ -51,5 +68,7 @@ public class ImportProductsModel : PageModel
                 ErrorMessage = $"Error parsing XML: {ex.Message}";
             }
         }
+
+        return Page();
     }
 }

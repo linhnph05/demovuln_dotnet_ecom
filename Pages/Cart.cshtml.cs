@@ -1,13 +1,20 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
+using Microsoft.Data.Sqlite;
+using System.Text.Json;
 using WebApp1.Models;
 
 namespace WebApp1.Pages;
 
 public class CartModel : PageModel
 {
+    private readonly string _connectionString;
+
+    public CartModel(IConfiguration configuration)
+    {
+        _connectionString = configuration.GetConnectionString("DefaultConnection") ?? "Data Source=shop.db";
+    }
+
     public List<CartItem> CartItems { get; set; } = new();
     public decimal TotalAmount => CartItems.Sum(x => x.Price * x.Quantity);
 
@@ -23,13 +30,7 @@ public class CartModel : PageModel
         {
             try
             {
-                byte[] data = Convert.FromBase64String(cartCookie);
-                using var ms = new MemoryStream(data);
-                
-#pragma warning disable SYSLIB0011
-                var formatter = new BinaryFormatter();
-                CartItems = (List<CartItem>)formatter.Deserialize(ms);
-#pragma warning restore SYSLIB0011
+                CartItems = JsonSerializer.Deserialize<List<CartItem>>(cartCookie) ?? new List<CartItem>();
             }
             catch
             {
@@ -49,13 +50,23 @@ public class CartModel : PageModel
         }
         else
         {
-            CartItems.Add(new CartItem
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            
+            var query = $"SELECT * FROM Products WHERE Id = {productId}";
+            using var command = new SqliteCommand(query, connection);
+            using var reader = command.ExecuteReader();
+            
+            if (reader.Read())
             {
-                ProductId = productId,
-                ProductName = $"Product {productId}",
-                Price = 99.99m,
-                Quantity = 1
-            });
+                CartItems.Add(new CartItem
+                {
+                    ProductId = reader.GetInt32(0),
+                    ProductName = reader.GetString(1),
+                    Price = reader.GetDecimal(3),
+                    Quantity = 1
+                });
+            }
         }
 
         SaveCart();
@@ -76,16 +87,12 @@ public class CartModel : PageModel
 
     private void SaveCart()
     {
-        using var ms = new MemoryStream();
-#pragma warning disable SYSLIB0011
-        var formatter = new BinaryFormatter();
-        formatter.Serialize(ms, CartItems);
-#pragma warning restore SYSLIB0011
-        
-        var data = Convert.ToBase64String(ms.ToArray());
-        Response.Cookies.Append("ShoppingCart", data, new CookieOptions
+        var json = JsonSerializer.Serialize(CartItems);
+        Response.Cookies.Append("ShoppingCart", json, new CookieOptions
         {
-            Expires = DateTimeOffset.Now.AddDays(7)
+            Expires = DateTimeOffset.Now.AddDays(7),
+            HttpOnly = true
         });
     }
 }
+

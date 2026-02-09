@@ -18,12 +18,29 @@ public class AdminModel : PageModel
 
     public string? RenderedEmail { get; set; }
 
-    public void OnGet()
+    public IActionResult OnGet()
     {
+        var username = HttpContext.Session.GetString("Username");
+        var isAdmin = HttpContext.Session.GetString("IsAdmin");
+
+        if (string.IsNullOrEmpty(username) || isAdmin != "True")
+        {
+            return RedirectToPage("/Login");
+        }
+
+        return Page();
     }
 
-    public void OnPost()
+    public IActionResult OnPost()
     {
+        var username = HttpContext.Session.GetString("Username");
+        var isAdmin = HttpContext.Session.GetString("IsAdmin");
+
+        if (string.IsNullOrEmpty(username) || isAdmin != "True")
+        {
+            return RedirectToPage("/Login");
+        }
+
         if (!string.IsNullOrEmpty(EmailTemplate))
         {
             try
@@ -42,5 +59,7 @@ public class AdminModel : PageModel
                 RenderedEmail = $"Error rendering template: {ex.Message}";
             }
         }
+
+        return Page();
     }
 }

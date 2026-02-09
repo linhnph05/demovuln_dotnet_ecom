@@ -27,8 +27,7 @@ public class ShopDbContext : DbContext
         );
 
         modelBuilder.Entity<User>().HasData(
-            new User { Id = 1, Username = "admin", Password = "admin123", Email = "admin@shop.com", IsAdmin = true },
-            new User { Id = 2, Username = "john", Password = "password", Email = "john@example.com", IsAdmin = false }
+            new User { Id = 1, Username = "admin", Password = "admin123", Email = "admin@shop.com", IsAdmin = true }
         );
     }
 }

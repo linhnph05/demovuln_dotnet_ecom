@@ -10,20 +10,64 @@
 {
     <div class="alert @(Model.Message.Contains("success") ? "alert-success" : "alert-danger")">
         @Model.Message
+        @if (Model.Message.Contains("success"))
+        {
+            <div class="mt-2">
+                <a href="/Products" class="btn btn-primary btn-sm">Continue Shopping</a>
+            </div>
+        }
     </div>
 }
 
-<form method="post">
-    <div class="mb-3">
-        <label for="ShippingAddress" class="form-label">Shipping Address</label>
-        <textarea class="form-control" id="ShippingAddress" name="ShippingAddress" rows="3" required></textarea>
+@if (Model.CartItems.Any() && string.IsNullOrEmpty(Model.Message))
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Order Summary</h5>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.CartItems)
+                    {
+                        <tr>
+                            <td>@item.ProductName</td>
+                            <td>$@item.Price</td>
+                            <td>@item.Quantity</td>
+                            <td>$@(item.Price * item.Quantity)</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                        <td><strong>$@Model.TotalAmount</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
 
-    <div class="mb-3">
-        <label for="CardNumber" class="form-label">Credit Card Number</label>
-        <input type="text" class="form-control" id="CardNumber" name="CardNumber" placeholder="1234-5678-9012-3456">
-    </div>
+    <form method="post">
+        <div class="mb-3">
+            <label for="ShippingAddress" class="form-label">Shipping Address</label>
+            <textarea class="form-control" id="ShippingAddress" name="ShippingAddress" rows="3" required></textarea>
+        </div>
 
-    <button type="submit" class="btn btn-success">Place Order</button>
-    <a href="/Cart" class="btn btn-secondary">Back to Cart</a>
-</form>
+        <div class="mb-3">
+            <label for="CardNumber" class="form-label">Credit Card Number</label>
+            <input type="text" class="form-control" id="CardNumber" name="CardNumber" placeholder="1234-5678-9012-3456">
+        </div>
+
+        <button type="submit" class="btn btn-success">Place Order</button>
+        <a href="/Cart" class="btn btn-secondary">Back to Cart</a>
+    </form>
+}

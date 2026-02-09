@@ -1,8 +1,5 @@
-using System;
-
 namespace WebApp1.Models;
 
-[Serializable]
 public class CartItem
 {
     public int ProductId { get; set; }
