@@ -1,0 +1,29 @@
+@page
+@model CheckoutModel
+@{
+    ViewData["Title"] = "Checkout";
+}
+
+<h1>Checkout</h1>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert @(Model.Message.Contains("success") ? "alert-success" : "alert-danger")">
+        @Model.Message
+    </div>
+}
+
+<form method="post">
+    <div class="mb-3">
+        <label for="ShippingAddress" class="form-label">Shipping Address</label>
+        <textarea class="form-control" id="ShippingAddress" name="ShippingAddress" rows="3" required></textarea>
+    </div>
+
+    <div class="mb-3">
+        <label for="CardNumber" class="form-label">Credit Card Number</label>
+        <input type="text" class="form-control" id="CardNumber" name="CardNumber" placeholder="1234-5678-9012-3456">
+    </div>
+
+    <button type="submit" class="btn btn-success">Place Order</button>
+    <a href="/Cart" class="btn btn-secondary">Back to Cart</a>
+</form>

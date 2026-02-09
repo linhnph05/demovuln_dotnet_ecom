@@ -1,0 +1,53 @@
+@page
+@model CartModel
+@{
+    ViewData["Title"] = "Shopping Cart";
+}
+
+<h1>Shopping Cart</h1>
+
+@if (Model.CartItems.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>Subtotal</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.CartItems)
+            {
+                <tr>
+                    <td>@item.ProductName</td>
+                    <td>$@item.Price</td>
+                    <td>@item.Quantity</td>
+                    <td>$@(item.Price * item.Quantity)</td>
+                    <td>
+                        <a href="/Cart?handler=Remove&productId=@item.ProductId" class="btn btn-danger btn-sm">Remove</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                <td><strong>$@Model.TotalAmount</strong></td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="mt-3">
+        <a href="/Checkout" class="btn btn-primary">Proceed to Checkout</a>
+        <a href="/Products" class="btn btn-secondary">Continue Shopping</a>
+    </div>
+}
+else
+{
+    <p>Your cart is empty.</p>
+    <a href="/Products" class="btn btn-primary">Shop Now</a>
+}

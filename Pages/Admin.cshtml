@@ -1,0 +1,45 @@
+@page
+@model AdminModel
+@{
+    ViewData["Title"] = "Admin - Email Template";
+}
+
+<h1>Admin Panel - Email Template Editor</h1>
+
+<div class="alert alert-info">
+    <strong>Note:</strong> Use @@Model.CustomerName, @@Model.OrderId, and @@Model.Date in your template.
+</div>
+
+<form method="post">
+    <div class="mb-3">
+        <label for="CustomerName" class="form-label">Customer Name (Test Data)</label>
+        <input type="text" class="form-control" id="CustomerName" name="CustomerName" value="@Model.CustomerName">
+    </div>
+
+    <div class="mb-3">
+        <label for="OrderId" class="form-label">Order ID (Test Data)</label>
+        <input type="text" class="form-control" id="OrderId" name="OrderId" value="@Model.OrderId">
+    </div>
+
+    <div class="mb-3">
+        <label for="EmailTemplate" class="form-label">Email Template</label>
+        <textarea class="form-control" id="EmailTemplate" name="EmailTemplate" rows="10">@Model.EmailTemplate</textarea>
+        <small class="form-text text-muted">
+            Example: Dear @@Model.CustomerName, your order #@@Model.OrderId has been processed on @@Model.Date.
+        </small>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Preview Email</button>
+</form>
+
+@if (!string.IsNullOrEmpty(Model.RenderedEmail))
+{
+    <div class="mt-4">
+        <h3>Preview:</h3>
+        <div class="card">
+            <div class="card-body">
+                @Html.Raw(Model.RenderedEmail)
+            </div>
+        </div>
+    </div>
+}

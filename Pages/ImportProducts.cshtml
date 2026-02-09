@@ -1,0 +1,69 @@
+@page
+@model ImportProductsModel
+@{
+    ViewData["Title"] = "Import Products";
+}
+
+<h1>Import Products from XML</h1>
+
+<div class="alert alert-info">
+    <strong>XML Format:</strong> Use the following structure to import products.
+</div>
+
+<pre class="bg-light p-3">
+&lt;Products&gt;
+    &lt;Product&gt;
+        &lt;Name&gt;Product Name&lt;/Name&gt;
+        &lt;Description&gt;Product Description&lt;/Description&gt;
+        &lt;Price&gt;99.99&lt;/Price&gt;
+        &lt;Stock&gt;10&lt;/Stock&gt;
+        &lt;Category&gt;Category&lt;/Category&gt;
+    &lt;/Product&gt;
+&lt;/Products&gt;
+</pre>
+
+<form method="post">
+    <div class="mb-3">
+        <label for="XmlData" class="form-label">XML Data</label>
+        <textarea class="form-control" id="XmlData" name="XmlData" rows="15">@Model.XmlData</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Import Products</button>
+</form>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger mt-4">
+        @Model.ErrorMessage
+    </div>
+}
+
+@if (Model.ImportedProducts.Any())
+{
+    <div class="mt-4">
+        <h3>Imported Products:</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Category</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in Model.ImportedProducts)
+                {
+                    <tr>
+                        <td>@product.Name</td>
+                        <td>@product.Description</td>
+                        <td>$@product.Price</td>
+                        <td>@product.Stock</td>
+                        <td>@product.Category</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

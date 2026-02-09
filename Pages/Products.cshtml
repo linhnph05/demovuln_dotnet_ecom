@@ -1,0 +1,43 @@
+@page
+@model ProductsModel
+@{
+    ViewData["Title"] = "Products";
+}
+
+<h1>Products</h1>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form method="get">
+            <div class="input-group">
+                <input type="text" name="SearchTerm" class="form-control" placeholder="Search products..." value="@Model.SearchTerm">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Products.Any())
+{
+    <div class="row">
+        @foreach (var product in Model.Products)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">@product.Name</h5>
+                        <p class="card-text">@product.Description</p>
+                        <p class="text-muted">Category: @product.Category</p>
+                        <p class="fw-bold">$@product.Price</p>
+                        <p class="text-secondary">Stock: @product.Stock</p>
+                        <a href="/Cart/Add?productId=@product.Id" class="btn btn-success">Add to Cart</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <p>No products found.</p>
+}

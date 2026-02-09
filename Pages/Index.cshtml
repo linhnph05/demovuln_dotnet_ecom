@@ -1,0 +1,45 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to Tech Shop</h1>
+    <p class="lead">Your one-stop destination for electronics and accessories</p>
+    
+    <div class="mt-4">
+        <a href="/Products" class="btn btn-primary btn-lg">Browse Products</a>
+        <a href="/Login" class="btn btn-outline-secondary btn-lg">Login</a>
+    </div>
+    
+    <div class="mt-5">
+        <h3>Featured Categories</h3>
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Electronics</h5>
+                        <p>Laptops, Smartphones, and more</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Accessories</h5>
+                        <p>Keyboards, Mice, and peripherals</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5>Special Offers</h5>
+                        <p>Check out our latest deals</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
