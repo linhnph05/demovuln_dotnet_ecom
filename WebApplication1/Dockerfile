@@ -16,5 +16,8 @@ RUN dotnet publish "WebApplication1.csproj" -c Release -o /app/publish /p:UseApp
 
 FROM base AS final
 WORKDIR /app
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends imagemagick \
+	&& rm -rf /var/lib/apt/lists/*
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "WebApplication1.dll"]

@@ -57,7 +57,7 @@ public class AccountController : Controller
 
         return RedirectToAction("Login");
     }
-    
+
     [HttpGet]
     public async Task<IActionResult> Profile()
     {
@@ -84,27 +84,39 @@ public class AccountController : Controller
         return View(user);
     }
 
-    // ── POST /Account/Profile ── VULNERABLE: Insecure Deserialization ─────────
     [HttpPost]
     public async Task<IActionResult> Profile(string fullName, string email, string address, string phone, string? profileData)
     {
         var userId = HttpContext.Session.GetString("UserId");
         if (userId == null) return RedirectToAction("Login");
 
-        // VULNERABLE: Insecure Deserialization — TypeNameHandling.All deserialises
-        // user-supplied JSON and instantiates arbitrary .NET types via $type.
-        // Exploit using ysoserial.net: -g ObjectDataProvider -f Json.Net -c "cmd /c ..."
-        if (!string.IsNullOrEmpty(profileData))
+        var profileDataToSave = "";
+
+        if (!string.IsNullOrWhiteSpace(profileData))
         {
             try
             {
                 var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
-                _ = JsonConvert.DeserializeObject(profileData, settings);
+                var deserialized = JsonConvert.DeserializeObject(profileData, settings);
+
+                // Normal functionality: validate and normalize JSON before storing.
+                // NOTE: still intentionally vulnerable because deserialization keeps TypeNameHandling.All.
+                if (deserialized is Dictionary<string, object?> map)
+                {
+                    if (!map.ContainsKey("theme")) map["theme"] = "light";
+                    if (!map.ContainsKey("newsletter")) map["newsletter"] = false;
+                }
+
+                profileDataToSave = JsonConvert.SerializeObject(deserialized, Formatting.None);
             }
-            catch { /* swallow — side-effects already triggered */ }
+            catch
+            {
+                TempData["Error"] = "Preferences must be valid JSON.";
+                return RedirectToAction("Profile");
+            }
         }
 
-        var escapedProfileData = profileData?.Replace("'", "''") ?? "";
+        var escapedProfileData = profileDataToSave.Replace("'", "''");
         var sql = $"UPDATE Users SET FullName='{fullName}', Email='{email}', Address='{address}', Phone='{phone}', ProfileData='{escapedProfileData}' WHERE Id={userId}";
         await _db.ExecuteNonQueryAsync(sql);
 
@@ -139,54 +151,63 @@ public class AccountController : Controller
             Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
         Directory.CreateDirectory(uploadsDir);
 
-        // VULNERABLE: client-supplied filename used directly — no sanitisation.
-        // Enables both path traversal (../../evil) and shell injection when the
-        // filename is later passed to the file(1) command below.
-        var fileName = Path.GetFileName(avatarFile.FileName); // GetFileName still keeps injections like "x.jpg; id"
-        var savePath  = Path.Combine(uploadsDir, fileName);
+        // Use generated server-side filename to avoid collisions and traversal issues.
+        var fileName = $"{Guid.NewGuid():N}.jpg";
+        var savePath = Path.Combine(uploadsDir, fileName);
+        var tempInputPath = Path.Combine(uploadsDir, $"{Guid.NewGuid():N}{Path.GetExtension(avatarFile.FileName)}");
 
-        await using (var fs = new FileStream(savePath, FileMode.Create))
+        await using (var fs = new FileStream(tempInputPath, FileMode.Create))
             await avatarFile.CopyToAsync(fs);
 
-        // VULNERABLE: Command Injection — savePath contains the unsanitised filename.
-        // Example filename:  photo.jpg; whoami; #
-        // Shell sees:        file -b /app/.../photo.jpg; whoami; #
-        var fileInfo = RunFileCommand(savePath);
+        // Resize/compress avatar to a practical web format (max 512x512 JPEG).
+        var (ok, commandOutput) = RunImageOptimizeCommand(tempInputPath, savePath);
+        System.IO.File.Delete(tempInputPath);
+
+        if (!ok)
+        {
+            TempData["Error"] = $"Could not process image. {commandOutput}";
+            return RedirectToAction("Profile");
+        }
 
         var avatarUrl = $"/uploads/avatars/{fileName}";
         // SQL injection also present in the UPDATE
         await _db.ExecuteNonQueryAsync(
             $"UPDATE Users SET AvatarUrl='{avatarUrl.Replace("'", "''")}' WHERE Id={userId}");
 
-        TempData["Success"] = $"Avatar uploaded. Server analysis: {fileInfo}";
+        TempData["Success"] = "Avatar uploaded and optimized successfully.";
         return RedirectToAction("Profile");
     }
 
-    // ── Shared helper: intentionally vulnerable to command injection ───────────
-    private static string RunFileCommand(string filePath)
+    // Uses ImageMagick to optimize avatars: auto-orient, strip metadata,
+    // resize to max 512x512 and compress to quality 82 JPEG.
+    private static (bool Success, string Output) RunImageOptimizeCommand(string inputPath, string outputPath)
     {
-        // VULNERABLE: filePath is built from unsanitised user input and interpolated
-        // directly into the shell argument string.  No quoting, no escaping.
-        //
-        // Safe version would be:  Arguments = $"-b --", with filePath as a separate arg.
-        // Vulnerable version:     Arguments = $"-c \"file -b {filePath} 2>&1\""
         try
         {
             var psi = new ProcessStartInfo
             {
-                FileName               = "/bin/bash",
-                Arguments              = $"-c \"file -b {filePath} 2>&1\"",
+                FileName               = "magick",
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
                 CreateNoWindow         = true
             };
+
+            psi.ArgumentList.Add(inputPath);
+            psi.ArgumentList.Add("-auto-orient");
+            psi.ArgumentList.Add("-strip");
+            psi.ArgumentList.Add("-resize");
+            psi.ArgumentList.Add("512x512>");
+            psi.ArgumentList.Add("-quality");
+            psi.ArgumentList.Add("82");
+            psi.ArgumentList.Add(outputPath);
+
             using var proc = Process.Start(psi)!;
             var output = proc.StandardOutput.ReadToEnd() + proc.StandardError.ReadToEnd();
             proc.WaitForExit(5000);
-            return output.Trim();
+            return (proc.ExitCode == 0, output.Trim());
         }
-        catch (Exception ex) { return $"[error: {ex.Message}]"; }
+        catch (Exception ex) { return (false, $"[error: {ex.Message}]"); }
     }
 
     // ── GET /Account/Logout ───────────────────────────────────────────────────
