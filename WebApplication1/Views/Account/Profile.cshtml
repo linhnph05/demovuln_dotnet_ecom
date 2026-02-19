@@ -1,0 +1,152 @@
+@model WebApplication1.Models.User
+@{
+    ViewData["Title"] = "My Profile";
+}
+
+<div class="container py-5">
+    <div class="row g-4">
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm text-center p-4">
+                @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+                {
+                    <img src="@Model.AvatarUrl" alt="Avatar"
+                         class="rounded-circle mx-auto mb-3 border shadow-sm"
+                         style="width:80px;height:80px;object-fit:cover;"/>
+                }
+                else
+                {
+                    <div class="avatar-lg mx-auto mb-3">@Model.Username[0].ToString().ToUpper()</div>
+                }
+                <h5 class="fw-bold mb-1">@Model.FullName</h5>
+                <div class="text-muted small mb-2">@Model.Email</div>
+                <span class="badge @(Model.Role == "admin" ? "bg-danger" : "bg-primary") rounded-pill">@Model.Role</span>
+                <hr/>
+                <ul class="list-unstyled text-start small">
+                    <li class="mb-2"><i class="fas fa-calendar text-muted me-2"></i>Member since @Model.CreatedAt.ToString("MMM yyyy")</li>
+                    @if (!string.IsNullOrEmpty(Model.Phone))
+                    {
+                        <li class="mb-2"><i class="fas fa-phone text-muted me-2"></i>@Model.Phone</li>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.Address))
+                    {
+                        <li><i class="fas fa-map-marker-alt text-muted me-2"></i>@Model.Address</li>
+                    }
+                </ul>
+                <a asp-controller="Order" asp-action="Index" class="btn btn-outline-primary btn-sm mt-2 w-100">
+                    <i class="fas fa-box me-1"></i>My Orders
+                </a>
+            </div>
+        </div>
+
+        <!-- Main -->
+        <div class="col-lg-9">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
+                    <ul class="nav nav-tabs border-0" id="profileTabs">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#infoTab">
+                                <i class="fas fa-user me-1"></i>Edit Profile
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#avatarTab">
+                                <i class="fas fa-image me-1"></i>Avatar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#advancedTab">
+                                <i class="fas fa-sliders-h me-1"></i>Preferences
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body p-4 tab-content">
+
+                    <!-- Basic info tab -->
+                    <div class="tab-pane fade show active" id="infoTab">
+                        <form asp-controller="Account" asp-action="Profile" method="post">
+                            <input type="hidden" name="profileData" id="hiddenProfileData" value="@Model.ProfileData"/>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Full Name</label>
+                                    <input type="text" name="fullName" class="form-control" value="@Model.FullName" required/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Email</label>
+                                    <input type="email" name="email" class="form-control" value="@Model.Email" required/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Phone</label>
+                                    <input type="text" name="phone" class="form-control" value="@Model.Phone" placeholder="+1 555-0100"/>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Address</label>
+                                    <input type="text" name="address" class="form-control" value="@Model.Address" placeholder="123 Main St"/>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-4 px-4">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="tab-pane fade" id="avatarTab">
+                        <div class="row g-4">
+                            <div class="col-md-8">
+                                <div class="card border-0 bg-light p-4 h-100">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-upload me-2 text-primary"></i>Profile Photo</h6>
+
+                                    @if (!string.IsNullOrEmpty(Model.AvatarUrl))
+                                    {
+                                        <div class="mb-3 text-center">
+                                            <img src="@Model.AvatarUrl" alt="Current avatar"
+                                                 class="rounded border shadow-sm"
+                                                 style="max-height:120px;max-width:100%;object-fit:contain;"/>
+                                            <div class="text-muted small mt-1">Current: <code>@Model.AvatarUrl</code></div>
+                                        </div>
+                                    }
+
+                                    <form asp-controller="Account" asp-action="UploadAvatar"
+                                          method="post" enctype="multipart/form-data">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold small">Choose file</label>
+                                            <input type="file" name="avatarFile" class="form-control form-control-sm"
+                                                   id="avatarFileInput"/>
+                                            <div class="form-text">Accepted formats: JPG, PNG, GIF, WebP. Max 5 MB.</div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                                            <i class="fas fa-upload me-1"></i>Upload Photo
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="advancedTab">
+                        <form asp-controller="Account" asp-action="Profile" method="post">
+                            <input type="hidden" name="fullName" value="@Model.FullName"/>
+                            <input type="hidden" name="email" value="@Model.Email"/>
+                            <input type="hidden" name="address" value="@Model.Address"/>
+                            <input type="hidden" name="phone" value="@Model.Phone"/>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Profile Data</label>
+                                <textarea name="profileData" class="form-control font-monospace" rows="8"
+                                          placeholder='{"theme":"light","newsletter":true}'>@Model.ProfileData</textarea>
+                                <div class="form-text">Store custom preferences in JSON format.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-2"></i>Save Preferences
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+

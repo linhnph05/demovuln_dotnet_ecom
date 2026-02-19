@@ -1,0 +1,55 @@
+@model List<WebApplication1.Models.Product>
+@{
+    ViewData["Title"] = $"Search: {ViewBag.Query}";
+}
+
+<div class="container py-5">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <h2 class="fw-bold mb-0">Search Results</h2>
+        @if (!string.IsNullOrEmpty(ViewBag.Query?.ToString()))
+        {
+            <span class="badge bg-primary-soft text-primary fs-6 px-3 py-2">@ViewBag.Query</span>
+        }
+    </div>
+
+    @if (Model == null || Model.Count == 0)
+    {
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3 opacity-50"></i>
+            <h5 class="text-muted">No products found for "@ViewBag.Query"</h5>
+            <a href="/" class="btn btn-primary mt-3">Back to Home</a>
+        </div>
+    }
+    else
+    {
+        <p class="text-muted mb-4">Found <strong>@Model.Count</strong> result(s) for <em>"@ViewBag.Query"</em></p>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
+            @foreach (var p in Model)
+            {
+                <div class="col">
+                    <div class="product-card h-100">
+                        <a href="/Product/Details/@p.Id" class="text-decoration-none">
+                            <div class="product-img-wrap">
+                                <img src="@p.ImageUrl" alt="@p.Name" class="product-img"/>
+                            </div>
+                            <div class="p-3">
+                                <div class="text-muted small mb-1">@p.Category</div>
+                                <h6 class="product-name fw-semibold mb-2">@p.Name</h6>
+                                <span class="product-price">$@p.Price.ToString("N2")</span>
+                            </div>
+                        </a>
+                        <div class="p-3 pt-0">
+                            <form asp-controller="Cart" asp-action="Add" method="post">
+                                <input type="hidden" name="productId" value="@p.Id"/>
+                                <input type="hidden" name="quantity" value="1"/>
+                                <button type="submit" class="btn btn-primary w-100 btn-sm">
+                                    <i class="fas fa-cart-plus me-1"></i>Add to Cart
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

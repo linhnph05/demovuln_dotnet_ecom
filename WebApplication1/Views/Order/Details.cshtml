@@ -1,0 +1,153 @@
+@model WebApplication1.Models.Order
+@{
+    ViewData["Title"] = $"Order #{Model.Id}";
+    var statusSteps = new[] { "Pending", "Processing", "Shipped", "Delivered" };
+    var currentStep = Array.IndexOf(statusSteps, Model.Status);
+}
+
+<div class="container py-5">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/" class="text-decoration-none">Home</a></li>
+            <li class="breadcrumb-item"><a href="/Order" class="text-decoration-none">My Orders</a></li>
+            <li class="breadcrumb-item active">Order #@Model.Id</li>
+        </ol>
+    </nav>
+
+    <div class="row g-4">
+        <!-- Order info -->
+        <div class="col-lg-8">
+            <!-- Progress tracker -->
+            <div class="card border-0 shadow-sm p-4 mb-4">
+                <h5 class="fw-bold mb-4">Order Status</h5>
+                <div class="order-tracker d-flex justify-content-between position-relative">
+                    <div class="tracker-line position-absolute top-50 start-0 end-0 translate-middle-y" style="height:3px;background:#e9ecef;z-index:0"></div>
+                    @for (var i = 0; i < statusSteps.Length; i++)
+                    {
+                        var step = statusSteps[i];
+                        var done = i <= currentStep;
+                        <div class="tracker-step text-center position-relative" style="z-index:1">
+                            <div class="tracker-dot mx-auto mb-2 @(done ? "bg-primary" : "bg-light border")"
+                                 style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                                @if (done)
+                                { <i class="fas fa-check text-white small"></i> }
+                                else
+                                { <span class="text-muted small">@(i+1)</span> }
+                            </div>
+                            <div class="small fw-semibold @(done ? "text-primary" : "text-muted")">@step</div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-0">Order Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="d-flex align-items-center gap-3 p-4 border-bottom">
+                            <div class="rounded-3 bg-light d-flex align-items-center justify-content-center"
+                                 style="width:60px;height:60px;min-width:60px;">
+                                <i class="fas fa-box text-muted"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold">@item.ProductName</div>
+                                <div class="text-muted small">Qty: @item.Quantity × $@item.UnitPrice.ToString("N2")</div>
+                            </div>
+                            <div class="fw-bold">$@((item.Quantity * item.UnitPrice).ToString("N2"))</div>
+                        </div>
+                    }
+                    <div class="p-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Subtotal</span>
+                            <span>$@Model.TotalAmount.ToString("N2")</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">Shipping</span>
+                            <span class="text-success">Free</span>
+                        </div>
+                        <hr/>
+                        <div class="d-flex justify-content-between fw-bold fs-5">
+                            <span>Total</span>
+                            <span class="text-primary">$@Model.TotalAmount.ToString("N2")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm p-4 mb-3">
+                <h6 class="fw-bold mb-3"><i class="fas fa-info-circle me-2 text-primary"></i>Order Info</h6>
+                <dl class="mb-0">
+                    <dt class="text-muted small">Order ID</dt>
+                    <dd class="fw-semibold">#@Model.Id</dd>
+                    <dt class="text-muted small">Placed On</dt>
+                    <dd>@Model.CreatedAt.ToString("MMMM d, yyyy 'at' h:mm tt")</dd>
+                    <dt class="text-muted small">Status</dt>
+                    <dd><span class="badge bg-primary rounded-pill">@Model.Status</span></dd>
+                </dl>
+            </div>
+
+            <div class="card border-0 shadow-sm p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-truck me-2 text-primary"></i>Shipping Address</h6>
+                <p class="text-muted mb-0">@Model.ShippingAddress</p>
+                @if (!string.IsNullOrEmpty(Model.Notes))
+                {
+                    <hr/>
+                    <h6 class="fw-bold mb-2">Notes</h6>
+                    <p class="text-muted mb-0 small">@Model.Notes</p>
+                }
+            </div>
+
+            <div class="mt-3 d-grid gap-2">
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#invoiceModal">
+                    <i class="fas fa-file-pdf me-2"></i>Download Invoice
+                </button>
+                <a href="/Order/Receipt/@Model.Id" class="btn btn-outline-success">
+                    <i class="fas fa-receipt me-2"></i>Download Receipt
+                </a>
+                <a href="/Order" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Orders
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="invoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">
+                    <i class="fas fa-file-pdf me-2 text-danger"></i>Download Invoice
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Order" asp-action="DownloadInvoice" method="post">
+                <div class="modal-body">
+                    <input type="hidden" name="orderId" value="@Model.Id"/>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Custom Logo URL <span class="text-muted fw-normal small">(optional)</span>
+                        </label>
+                        <input type="text" name="logoUrl" id="logoUrlInput"
+                               class="form-control"
+                               placeholder="https://example.com/logo.png"/>
+                        <div class="form-text">Enter a URL to use a custom logo on your invoice, or leave blank for the default.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm px-4">
+                        <i class="fas fa-file-pdf me-1"></i>Download PDF
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

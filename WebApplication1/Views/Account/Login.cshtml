@@ -1,0 +1,75 @@
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_Layout";
+}
+
+<div class="auth-page d-flex align-items-center justify-content-center min-vh-100 py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <div class="auth-card card border-0 shadow-lg">
+                    <div class="card-body p-5">
+                        <div class="text-center mb-4">
+                            <div class="auth-icon mb-3"><i class="fas fa-lock fa-2x"></i></div>
+                            <h2 class="fw-bold">Welcome Back</h2>
+                            <p class="text-muted">Sign in to your NexCart account</p>
+                        </div>
+
+                        @if (ViewBag.Error != null)
+                        {
+                            <div class="alert alert-danger rounded-3 d-flex align-items-center gap-2">
+                                <i class="fas fa-exclamation-circle"></i>
+                                @ViewBag.Error
+                            </div>
+                        }
+
+                        <form asp-controller="Account" asp-action="Login" method="post">
+                            <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl"/>
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Username</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-user text-muted"></i></span>
+                                    <input type="text" name="username" class="form-control border-start-0 ps-0" placeholder="Enter username" required autocomplete="username"/>
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between">
+                                    <label class="form-label fw-semibold">Password</label>
+                                    <a href="#" class="small text-muted">Forgot password?</a>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-key text-muted"></i></span>
+                                    <input type="password" name="password" id="password" class="form-control border-start-0 ps-0" placeholder="Enter password" required autocomplete="current-password"/>
+                                    <button class="btn btn-outline-secondary border-start-0" type="button" onclick="togglePwd()"><i class="fas fa-eye" id="eyeIcon"></i></button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                                Sign In <i class="fas fa-arrow-right ms-2"></i>
+                            </button>
+                        </form>
+
+                        <hr class="my-4"/>
+
+                        <div class="text-center">
+                            <span class="text-muted small">Don't have an account?</span>
+                            <a asp-controller="Account" asp-action="Register" class="ms-1 fw-semibold">Create one</a>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function togglePwd() {
+    const inp = document.getElementById('password');
+    const ic  = document.getElementById('eyeIcon');
+    if (inp.type === 'password') { inp.type = 'text'; ic.classList.replace('fa-eye','fa-eye-slash'); }
+    else { inp.type = 'password'; ic.classList.replace('fa-eye-slash','fa-eye'); }
+}
+</script>
+}

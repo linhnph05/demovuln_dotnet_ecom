@@ -1,0 +1,98 @@
+﻿@model List<WebApplication1.Models.Product>
+@{
+    ViewData["Title"] = "Home";
+}
+
+<!-- ── Categories ────────────────────────────────────────────────────────────── -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="fw-bold mb-4">Shop by Category</h2>
+        <div class="row g-3">
+            @foreach (var cat in new[] {
+                ("Electronics", "fa-laptop", "#6c63ff"),
+                ("Wearables", "fa-watch", "#ff6b6b"),
+                ("Furniture", "fa-chair", "#56c596"),
+                ("Accessories", "fa-plug", "#f97316"),
+                ("Bags", "fa-shopping-bag", "#0ea5e9"),
+                ("Storage", "fa-hdd", "#a855f7")
+            })
+            {
+                <div class="col-6 col-md-4 col-lg-2">
+                    <a href="/Product?category=@cat.Item1" class="cat-card text-decoration-none">
+                        <div class="cat-card-inner text-center p-3 rounded-3">
+                            <div class="cat-icon mb-2" style="color:@cat.Item3"><i class="fas @cat.Item2 fa-2x"></i></div>
+                            <div class="fw-semibold small">@cat.Item1</div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- ── Featured Products ──────────────────────────────────────────────────────── -->
+<section class="py-5" id="featured">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold mb-0">Featured Products</h2>
+            <a href="/Product" class="btn btn-outline-primary btn-sm">View All <i class="fas fa-arrow-right ms-1"></i></a>
+        </div>
+
+        @if (Model == null || Model.Count == 0)
+        {
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-box-open fa-3x mb-3 opacity-50"></i>
+                <p>No products found.</p>
+            </div>
+        }
+        else
+        {
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-4 g-4">
+                @foreach (var p in Model)
+                {
+                    <div class="col">
+                        <div class="product-card h-100">
+                            <a href="/Product/Details/@p.Id" class="text-decoration-none">
+                                <div class="product-img-wrap">
+                                    <img src="@p.ImageUrl" alt="@p.Name" class="product-img"/>
+                                    @if (p.Stock < 10)
+                                    {
+                                        <span class="badge bg-danger product-badge">Low Stock</span>
+                                    }
+                                </div>
+                                <div class="p-3">
+                                    <div class="text-muted small mb-1">@p.Category</div>
+                                    <h6 class="product-name fw-semibold mb-2">@p.Name</h6>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <span class="product-price">$@p.Price.ToString("N2")</span>
+                                        <div class="text-warning small">
+                                            <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-alt"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            <div class="p-3 pt-0">
+                                <form asp-controller="Cart" asp-action="Add" method="post">
+                                    <input type="hidden" name="productId" value="@p.Id"/>
+                                    <input type="hidden" name="quantity" value="1"/>
+                                    <button type="submit" class="btn btn-primary w-100 btn-sm">
+                                        <i class="fas fa-cart-plus me-1"></i>Add to Cart
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+<!-- ── Promo banner ───────────────────────────────────────────────────────────── -->
+<section class="promo-banner py-5 my-4">
+    <div class="container text-center text-white">
+        <h2 class="fw-bold mb-2">Free Shipping on Orders Over $50</h2>
+        <p class="mb-4 opacity-75">Use code <strong>SAVE10</strong> at checkout for an extra 10% off.</p>
+        <a href="/Product" class="btn btn-light btn-lg px-5 fw-semibold">Start Shopping</a>
+    </div>
+</section>

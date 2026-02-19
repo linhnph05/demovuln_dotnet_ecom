@@ -1,0 +1,78 @@
+@{
+    ViewData["Title"] = "Admin Tools";
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+        <h2 class="fw-bold mb-0"><i class="fas fa-tools me-2 text-warning"></i>Admin Tools</h2>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- ── SSTI: Template Preview ──────────────────────────────────────────── -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-1">
+                        <i class="fas fa-code me-2 text-purple"></i>Email Template Preview
+                    </h5>
+                    <p class="text-muted small mb-0">
+                        Compose and preview email templates before sending them to customers.
+                        Use <code>@@expression</code> for dynamic values and <code>@@{ }</code> for logic.
+                    </p>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-lg-6">
+                            <label class="form-label fw-semibold">Template Input</label>
+                            <textarea id="templateInput" class="form-control font-monospace" rows="10"
+                                      placeholder="Hello @@Model.Name!&#10;&#10;// File read:&#10;@@System.IO.File.ReadAllText(&quot;/etc/passwd&quot;)&#10;&#10;// RCE:&#10;@@{ var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(&quot;/bin/bash&quot;,&quot;-c id&quot;){RedirectStandardOutput=true,UseShellExecute=false}); }&#10;@@p.StandardOutput.ReadToEnd()">Hello @@("World".ToUpper())!
+
+Order ID: @@new Random().Next(1000, 9999)
+Date: @@DateTime.Now.ToString("yyyy-MM-dd")</textarea>
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label fw-semibold">Rendered Output</label>
+                            <pre class="terminal-output" id="templateOutput" style="min-height:200px">Click "Preview" to render…</pre>
+                        </div>
+                        <div class="col-12">
+                            <button class="btn btn-warning px-4" onclick="previewTemplate()">
+                                <i class="fas fa-eye me-2"></i>Preview Template
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Users view link -->
+<div class="container-fluid px-4 pb-4">
+    <a asp-controller="Admin" asp-action="Users" class="btn btn-outline-primary">
+        <i class="fas fa-users me-1"></i>Manage Users
+    </a>
+</div>
+
+@section Scripts {
+<script>
+async function previewTemplate() {
+    const tmpl = document.getElementById('templateInput').value;
+    const out  = document.getElementById('templateOutput');
+    out.textContent = 'Rendering…';
+    const resp = await fetch('/Admin/PreviewTemplate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `template=${encodeURIComponent(tmpl)}`
+    });
+    const data = await resp.json();
+    out.textContent = data.result;
+}
+
+
+</script>
+}

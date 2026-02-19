@@ -1,0 +1,153 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@ViewData["Title"] - NexCart</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
+</head>
+<body>
+
+<!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background:var(--nav-bg);">
+    <div class="container">
+        <a class="navbar-brand fw-bold fs-4" asp-controller="Home" asp-action="Index">
+            <i class="fas fa-store me-2 text-accent"></i>NexCart
+        </a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNav">
+            <!-- Search -->
+            <form class="d-flex mx-auto" style="max-width:420px;width:100%;" asp-controller="Home" asp-action="Search" method="get">
+                <div class="input-group">
+                    <input class="form-control search-input" type="search" name="q" placeholder="Search products…"
+                           value="@ViewBag.Query" autocomplete="off"/>
+                    <button class="btn btn-accent" type="submit"><i class="fas fa-search"></i></button>
+                </div>
+            </form>
+
+            <ul class="navbar-nav ms-auto align-items-center gap-1">
+                @if (Context.Session.GetString("UserId") != null)
+                {
+                    <li class="nav-item">
+                        <a class="nav-link position-relative" asp-controller="Cart" asp-action="Index">
+                            <i class="fas fa-shopping-cart fs-5"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger cart-badge" id="cartBadge" style="display:none">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+                            <div class="avatar-sm">@(Context.Session.GetString("Username")?[0].ToString().ToUpper() ?? "U")</div>
+                            <span>@Context.Session.GetString("Username")</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
+                            <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i>My Profile</a></li>
+                            <li><a class="dropdown-item" asp-controller="Order" asp-action="Index"><i class="fas fa-box me-2 text-muted"></i>My Orders</a></li>
+                            @if (Context.Session.GetString("Role") == "admin")
+                            {
+                                <li><hr class="dropdown-divider"/></li>
+                                <li><a class="dropdown-item text-danger fw-semibold" asp-controller="Admin" asp-action="Index"><i class="fas fa-shield-alt me-2"></i>Admin Panel</a></li>
+                            }
+                            <li><hr class="dropdown-divider"/></li>
+                            <li><a class="dropdown-item" asp-controller="Account" asp-action="Logout"><i class="fas fa-sign-out-alt me-2 text-muted"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item">
+                        <a class="nav-link" asp-controller="Account" asp-action="Login"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-accent btn-sm ms-1 px-3" asp-controller="Account" asp-action="Register">Register</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- ── Category bar ─────────────────────────────────────────────────────────── -->
+<div class="category-bar border-bottom">
+    <div class="container">
+        <div class="d-flex align-items-center gap-3 py-2 overflow-auto">
+            <a href="/Product" class="cat-link @(ViewBag.CurrentCategory == null ? "active" : "")">All</a>
+            <a href="/Product?category=Electronics" class="cat-link @(ViewBag.CurrentCategory == "Electronics" ? "active" : "")"><i class="fas fa-laptop me-1"></i>Electronics</a>
+            <a href="/Product?category=Wearables" class="cat-link @(ViewBag.CurrentCategory == "Wearables" ? "active" : "")"><i class="fas fa-watch me-1"></i>Wearables</a>
+            <a href="/Product?category=Furniture" class="cat-link @(ViewBag.CurrentCategory == "Furniture" ? "active" : "")"><i class="fas fa-chair me-1"></i>Furniture</a>
+            <a href="/Product?category=Accessories" class="cat-link @(ViewBag.CurrentCategory == "Accessories" ? "active" : "")"><i class="fas fa-plug me-1"></i>Accessories</a>
+            <a href="/Product?category=Bags" class="cat-link @(ViewBag.CurrentCategory == "Bags" ? "active" : "")"><i class="fas fa-shopping-bag me-1"></i>Bags</a>
+            <a href="/Product?category=Storage" class="cat-link @(ViewBag.CurrentCategory == "Storage" ? "active" : "")"><i class="fas fa-hdd me-1"></i>Storage</a>
+        </div>
+    </div>
+</div>
+
+<!-- ── Alerts ────────────────────────────────────────────────────────────────── -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show m-0 rounded-0 border-0" role="alert">
+        <div class="container"><i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show m-0 rounded-0 border-0" role="alert">
+        <div class="container"><i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    </div>
+}
+
+<main>@RenderBody()</main>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────────── -->
+<footer class="footer mt-auto py-5">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <h5 class="fw-semibold mb-3">NexCart</h5>
+                <p class="text-muted small">Simple online shopping for electronics and daily essentials.</p>
+            </div>
+            <div class="col-lg-2">
+                <h6 class="fw-semibold mb-3">Shop</h6>
+                <ul class="list-unstyled small">
+                    <li><a href="/Product" class="footer-link">All Products</a></li>
+                    <li><a href="/Product?category=Electronics" class="footer-link">Electronics</a></li>
+                    <li><a href="/Cart" class="footer-link">My Cart</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2">
+                <h6 class="fw-semibold mb-3">Account</h6>
+                <ul class="list-unstyled small">
+                    <li><a href="/Account/Login" class="footer-link">Login</a></li>
+                    <li><a href="/Account/Register" class="footer-link">Register</a></li>
+                    <li><a href="/Order" class="footer-link">Orders</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-4">
+                <h6 class="fw-semibold mb-3">Help & Support</h6>
+                <ul class="list-unstyled small">
+                    <li><a href="#" class="footer-link">FAQ</a></li>
+                    <li><a href="#" class="footer-link">Shipping Policy</a></li>
+                    <li><a href="#" class="footer-link">Returns</a></li>
+                    <li><a href="#" class="footer-link">Contact Us</a></li>
+                </ul>
+            </div>
+        </div>
+        <hr class="mt-4 border-secondary opacity-25">
+        <p class="text-center text-muted small mb-0">&copy; 2026 NexCart &mdash; All rights reserved.</p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

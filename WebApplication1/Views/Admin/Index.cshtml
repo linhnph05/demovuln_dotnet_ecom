@@ -1,0 +1,256 @@
+@{
+    ViewData["Title"] = "Admin Panel";
+    var products = ViewBag.Products as List<WebApplication1.Models.Product> ?? new();
+    var recentOrders = ViewBag.RecentOrders as List<Dictionary<string, object?>> ?? new();
+}
+
+<div class="container-fluid py-4 px-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fas fa-shield-alt me-2 text-danger"></i>Admin Panel</h2>
+            <p class="text-muted mb-0">Manage your store</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-controller="Admin" asp-action="Tools" class="btn btn-warning btn-sm">
+                <i class="fas fa-tools me-1"></i>Tools
+            </a>
+            <a asp-controller="Admin" asp-action="Users" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-users me-1"></i>Users
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card card border-0 shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small mb-1">Total Users</div>
+                        <div class="fs-3 fw-bold">@ViewBag.UserCount</div>
+                    </div>
+                    <div class="stat-icon bg-primary-soft"><i class="fas fa-users text-primary"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card card border-0 shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small mb-1">Products</div>
+                        <div class="fs-3 fw-bold">@ViewBag.ProductCount</div>
+                    </div>
+                    <div class="stat-icon bg-success-soft"><i class="fas fa-box text-success"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card card border-0 shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small mb-1">Total Orders</div>
+                        <div class="fs-3 fw-bold">@ViewBag.OrderCount</div>
+                    </div>
+                    <div class="stat-icon bg-warning-soft"><i class="fas fa-shopping-cart text-warning"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="stat-card card border-0 shadow-sm p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="text-muted small mb-1">Revenue</div>
+                        <div class="fs-3 fw-bold">$@((ViewBag.Revenue ?? 0m).ToString("N0"))</div>
+                    </div>
+                    <div class="stat-icon bg-danger-soft"><i class="fas fa-dollar-sign text-danger"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Recent Orders -->
+        <div class="col-xl-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Recent Orders</h5>
+                    <span class="badge bg-primary-soft text-primary">Last 10</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Order</th>
+                                    <th>Customer</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var o in recentOrders)
+                                {
+                                    var oid = Convert.ToInt32(o["Id"]);
+                                    var total = Convert.ToDecimal(o["TotalAmount"]);
+                                    var status = o["Status"]?.ToString() ?? "";
+                                    var uname = o["Username"]?.ToString() ?? "";
+                                    var badgeCls = status switch {
+                                        "Delivered"  => "bg-success",
+                                        "Shipped"    => "bg-info",
+                                        "Processing" => "bg-warning text-dark",
+                                        _            => "bg-secondary"
+                                    };
+                                    <tr>
+                                        <td><a href="/Order/Details/@oid" class="fw-semibold text-primary text-decoration-none">#@oid</a></td>
+                                        <td>@uname</td>
+                                        <td>$@total.ToString("N2")</td>
+                                        <td><span class="badge @badgeCls rounded-pill">@status</span></td>
+                                        <td>
+                                            <div class="dropdown">
+                                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                    Update
+                                                </button>
+                                                <ul class="dropdown-menu shadow border-0">
+                                                    @foreach (var st in new[] { "Pending", "Processing", "Shipped", "Delivered" })
+                                                    {
+                                                        <li>
+                                                            <form asp-controller="Admin" asp-action="UpdateOrderStatus" method="post">
+                                                                <input type="hidden" name="orderId" value="@oid"/>
+                                                                <input type="hidden" name="status" value="@st"/>
+                                                                <button type="submit" class="dropdown-item">@st</button>
+                                                            </form>
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Product + Import -->
+        <div class="col-xl-5">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-0"><i class="fas fa-plus-circle me-2 text-success"></i>Add Product</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-controller="Admin" asp-action="AddProduct" method="post">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <input type="text" name="name" class="form-control form-control-sm" placeholder="Product name" required/>
+                            </div>
+                            <div class="col-12">
+                                <textarea name="description" class="form-control form-control-sm" rows="2" placeholder="Description"></textarea>
+                            </div>
+                            <div class="col-6">
+                                <input type="number" name="price" class="form-control form-control-sm" placeholder="Price" step="0.01" required/>
+                            </div>
+                            <div class="col-6">
+                                <input type="number" name="stock" class="form-control form-control-sm" placeholder="Stock" required/>
+                            </div>
+                            <div class="col-6">
+                                <input type="text" name="category" class="form-control form-control-sm" placeholder="Category"/>
+                            </div>
+                            <div class="col-6">
+                                <input type="url" name="imageUrl" class="form-control form-control-sm" placeholder="Image URL"/>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success btn-sm w-100">Add Product</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-file-import me-2 text-warning"></i>Import Products (XML)
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small mb-3">
+                        Upload an XML file to bulk-import products in one go.
+                    </p>
+                    <details class="mb-3">
+                        <summary class="small text-muted cursor-pointer">Sample XML format</summary>
+                        <pre class="bg-light rounded p-2 mt-2 small">&lt;products&gt;
+  &lt;product&gt;
+    &lt;name&gt;Widget&lt;/name&gt;
+    &lt;description&gt;A widget&lt;/description&gt;
+    &lt;price&gt;9.99&lt;/price&gt;
+    &lt;stock&gt;100&lt;/stock&gt;
+    &lt;category&gt;General&lt;/category&gt;
+  &lt;/product&gt;
+&lt;/products&gt;</pre>
+                    </details>
+                    <form asp-controller="Product" asp-action="Import" method="post" enctype="multipart/form-data">
+                        <input type="file" name="xmlFile" class="form-control form-control-sm mb-2" accept=".xml"/>
+                        <button type="submit" class="btn btn-warning btn-sm w-100">
+                            <i class="fas fa-upload me-1"></i>Upload & Import
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products table -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+            <h5 class="fw-bold mb-0"><i class="fas fa-box me-2 text-primary"></i>Products (@products.Count)</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Image</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in products)
+                        {
+                            <tr>
+                                <td>@p.Id</td>
+                                <td><img src="@p.ImageUrl" alt="" class="rounded" style="width:48px;height:40px;object-fit:cover;"/></td>
+                                <td class="fw-semibold">@p.Name</td>
+                                <td><span class="badge bg-primary-soft text-primary">@p.Category</span></td>
+                                <td>$@p.Price.ToString("N2")</td>
+                                <td>@p.Stock</td>
+                                <td>
+                                    <div class="d-flex gap-1">
+                                        <a href="/Product/Details/@p.Id" class="btn btn-outline-primary btn-sm" target="_blank">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <form asp-controller="Admin" asp-action="DeleteProduct" method="post">
+                                            <input type="hidden" name="id" value="@p.Id"/>
+                                            <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                    onclick="return confirm('Delete @p.Name?')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
