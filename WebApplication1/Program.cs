@@ -22,7 +22,6 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddSingleton<DbHelper>();
-builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 
@@ -34,7 +33,6 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
-app.UseAuthorization();
 
 app.MapControllerRoute(
     name: "default",
