@@ -13,7 +13,6 @@ public class OrderController : Controller
     private readonly DbHelper _db;
     public OrderController(DbHelper db) => _db = db;
 
-    // ── GET /Order ── VULNERABLE: SQL Injection via status filter ─────────────
     public async Task<IActionResult> Index(string? status)
     {
         var userId = HttpContext.Session.GetString("UserId");
@@ -21,7 +20,7 @@ public class OrderController : Controller
 
         var where = string.IsNullOrEmpty(status)
             ? $"WHERE UserId = {userId}"
-            : $"WHERE UserId = {userId} AND Status = '{status}'";  // VULNERABLE
+            : $"WHERE UserId = {userId} AND Status = '{status}'";  
 
         var sql = $"SELECT * FROM Orders {where} ORDER BY CreatedAt DESC";
         var rows = await _db.ExecuteQueryAsync(sql);
@@ -41,13 +40,11 @@ public class OrderController : Controller
         return View(orders);
     }
 
-    // ── GET /Order/Details/{id} ───────────────────────────────────────────────
     public async Task<IActionResult> Details(int id)
     {
         var userId = HttpContext.Session.GetString("UserId");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // VULNERABLE: IDOR + SQL Injection — no ownership check on id
         var rows = await _db.ExecuteQueryAsync($"SELECT * FROM Orders WHERE Id = {id}");
         if (rows.Count == 0) return NotFound();
 
@@ -77,14 +74,12 @@ public class OrderController : Controller
         return View(order);
     }
 
-    // ── POST /Order/Checkout ──────────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Checkout(string shippingAddress, string? notes)
     {
         var userId = HttpContext.Session.GetString("UserId");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // Retrieve cart from cookie (inherits insecure deserialisation)
         var cartCookie = Request.Cookies["shopvuln_cart"];
         if (string.IsNullOrEmpty(cartCookie))
         {
@@ -104,9 +99,7 @@ public class OrderController : Controller
         var note  = notes?.Replace("'", "''") ?? "";
         var total = cart.Total;
 
-        // VULNERABLE: SQL Injection via shippingAddress
         var orderSql = $"INSERT INTO Orders (UserId, TotalAmount, Status, ShippingAddress, Notes) VALUES ({userId}, {total}, 'Pending', '{addr}', '{note}')";
-        // ExecuteInsertAsync reads LastInsertedId on the SAME connection, so orderId is never 0
         var orderId = (int)await _db.ExecuteInsertAsync(orderSql);
 
         foreach (var item in cart.Items)
@@ -120,13 +113,6 @@ public class OrderController : Controller
         return RedirectToAction("Details", new { id = orderId });
     }
 
-    // ── POST /Order/DownloadInvoice ── VULNERABLE: SSRF via logoUrl ─────────
-    // The server calls HttpClient.GetAsync(logoUrl) server-side with no validation:
-    //   - No scheme check  → file:///etc/passwd
-    //   - No host whitelist → http://169.254.169.254/latest/meta-data/
-    //   - No port filter   → http://mysql:3306/
-    // The full HTTP response body is embedded verbatim in the generated PDF,
-    // making it trivial to exfiltrate internal data.
     [HttpPost]
     public async Task<IActionResult> DownloadInvoice(int orderId, string? logoUrl)
     {
@@ -155,7 +141,6 @@ public class OrderController : Controller
             UnitPrice   = Convert.ToDecimal(ir["UnitPrice"])
         }).ToList();
 
-        // ── SSRF SINK ──────────────────────────────────────────────────────────
         byte[] logoBytes  = [];
         string ssrfStatus = "No logo URL provided.";
         string remoteBody = "";
@@ -164,14 +149,8 @@ public class OrderController : Controller
         {
             try
             {
-                // VULNERABLE: SSRF — user-controlled URL fetched server-side.
-                // Effective probes:
-                //   http://169.254.169.254/latest/meta-data/   (AWS/GCP/Azure IMDS)
-                //   http://mysql:3306/                         (Docker internal service)
-                //   http://localhost:8080/Admin                (internal admin panel)
-                //   file:///etc/passwd                         (local file via file://)
                 using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                var resp     = await http.GetAsync(logoUrl);                         // ← SSRF
+                var resp     = await http.GetAsync(logoUrl);                         
                 var rawBytes = await resp.Content.ReadAsByteArrayAsync();
                 var ct       = resp.Content.Headers.ContentType?.MediaType ?? "";
                 ssrfStatus   = $"HTTP {(int)resp.StatusCode} {resp.StatusCode} | {rawBytes.Length} bytes | {ct}";
@@ -188,7 +167,6 @@ public class OrderController : Controller
             }
         }
 
-        // ── Build PDF with QuestPDF ────────────────────────────────────────────
         var pdf = Document.Create(container =>
         {
             container.Page(page =>
@@ -197,7 +175,6 @@ public class OrderController : Controller
                 page.Margin(50);
                 page.DefaultTextStyle(x => x.FontSize(11));
 
-                // ── Header ───────────────────────────────────────────────────
                 page.Header().Column(hdr =>
                 {
                     hdr.Item().Row(hRow =>
@@ -225,17 +202,14 @@ public class OrderController : Controller
                     hdr.Item().PaddingTop(8).LineHorizontal(1).LineColor("#e2e8f0");
                 });
 
-                // ── Content ──────────────────────────────────────────────────
                 page.Content().PaddingTop(16).Column(col =>
                 {
-                    // Bill To
                     col.Item().Background("#f8fafc").Padding(10).Column(bt =>
                     {
                         bt.Item().DefaultTextStyle(x => x.Bold().FontSize(9).FontColor("#64748b")).Text("BILL TO");
                         bt.Item().PaddingTop(4).Text(order.ShippingAddress);
                     });
 
-                    // Line items table
                     col.Item().PaddingTop(16).Table(table =>
                     {
                         table.ColumnsDefinition(cols =>
@@ -269,7 +243,6 @@ public class OrderController : Controller
                         }
                     });
 
-                    // Totals
                     col.Item().PaddingTop(10).AlignRight().Width(220).Column(totals =>
                     {
                         totals.Item().PaddingVertical(3).Row(tr =>
@@ -292,14 +265,13 @@ public class OrderController : Controller
                         });
                     });
 
-                    // SSRF evidence — full server-side fetch response embedded in PDF
                     if (!string.IsNullOrEmpty(logoUrl))
                     {
                         col.Item().PaddingTop(24).LineHorizontal(1).LineColor("#fca5a5");
                         col.Item().PaddingTop(8).Background("#fef2f2").Padding(12).Column(s =>
                         {
                             s.Item().DefaultTextStyle(x => x.Bold().FontSize(10).FontColor("#dc2626"))
-                                    .Text("External Resource Fetch Log  [SSRF Evidence]");
+                                    .Text("Hello");
                             s.Item().PaddingTop(4).DefaultTextStyle(x => x.FontSize(8).FontColor("#475569"))
                                     .Text($"URL:    {logoUrl}");
                             s.Item().DefaultTextStyle(x => x.FontSize(8).FontColor("#475569"))
@@ -319,7 +291,6 @@ public class OrderController : Controller
                     }
                 });
 
-                // ── Footer ───────────────────────────────────────────────────
                 page.Footer().AlignCenter().Text(t =>
                 {
                     t.Span("ShopVuln Store  ·  Invoice ").FontSize(8).FontColor("#94a3b8");
@@ -335,18 +306,12 @@ public class OrderController : Controller
         return File(pdf, "application/pdf", $"invoice-{orderId}.pdf");
     }
 
-    // ── GET /Order/Receipt/{id} ── VULNERABLE: IDOR ──────────────────────────
-    // No ownership check — any authenticated user can download any order's
-    // receipt by changing the id.  The JOIN on Users also leaks the customer's
-    // full name and email address, amplifying the information disclosure.
     [HttpGet]
     public async Task<IActionResult> Receipt(int id)
     {
         var userId = HttpContext.Session.GetString("UserId");
         if (userId == null) return RedirectToAction("Login", "Account");
 
-        // VULNERABLE: IDOR — id is never compared against session UserId.
-        // Enumerate: /Order/Receipt/1  /Order/Receipt/2  /Order/Receipt/3 ...
         var rows = await _db.ExecuteQueryAsync(
             $"SELECT o.*, u.Username, u.Email, u.FullName " +
             $"FROM Orders o JOIN Users u ON o.UserId = u.Id " +
@@ -364,7 +329,7 @@ public class OrderController : Controller
         sb.AppendLine($"Date       : {Convert.ToDateTime(r["CreatedAt"]):yyyy-MM-dd HH:mm}");
         sb.AppendLine($"Status     : {r["Status"]}");
         sb.AppendLine("------------------------------------------------");
-        sb.AppendLine("Customer Information:    [IDOR — not your order?]");
+        sb.AppendLine("Customer Information: ");
         sb.AppendLine($"  Full Name : {r["FullName"]}");
         sb.AppendLine($"  Email     : {r["Email"]}");
         sb.AppendLine($"  Username  : {r["Username"]}");

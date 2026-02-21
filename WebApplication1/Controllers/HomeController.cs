@@ -13,7 +13,6 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index(string? category)
     {
-        // VULNERABLE: SQL Injection via category parameter — no parameterisation
         var sql = string.IsNullOrEmpty(category)
             ? "SELECT * FROM Products ORDER BY CreatedAt DESC LIMIT 12"
             : $"SELECT * FROM Products WHERE Category = '{category}' ORDER BY CreatedAt DESC";
@@ -29,7 +28,6 @@ public class HomeController : Controller
         return View(products);
     }
 
-    // VULNERABLE: SQL Injection via q parameter
     public async Task<IActionResult> Search(string q = "")
     {
         var sql = $"SELECT * FROM Products WHERE Name LIKE '%{q}%' OR Description LIKE '%{q}%' OR Category LIKE '%{q}%'";

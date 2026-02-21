@@ -10,7 +10,6 @@
 </head>
 <body>
 
-<!-- ── Navbar ──────────────────────────────────────────────────────────────── -->
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background:var(--nav-bg);">
     <div class="container">
         <a class="navbar-brand fw-bold fs-4" asp-controller="Home" asp-action="Index">
@@ -22,7 +21,6 @@
         </button>
 
         <div class="collapse navbar-collapse" id="mainNav">
-            <!-- Search -->
             <form class="d-flex mx-auto" style="max-width:420px;width:100%;" asp-controller="Home" asp-action="Search" method="get">
                 <div class="input-group">
                     <input class="form-control search-input" type="search" name="q" placeholder="Search products…"
@@ -72,7 +70,6 @@
     </div>
 </nav>
 
-<!-- ── Category bar ─────────────────────────────────────────────────────────── -->
 <div class="category-bar border-bottom">
     <div class="container">
         <div class="d-flex align-items-center gap-3 py-2 overflow-auto">
@@ -87,7 +84,6 @@
     </div>
 </div>
 
-<!-- ── Alerts ────────────────────────────────────────────────────────────────── -->
 @if (TempData["Success"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show m-0 rounded-0 border-0" role="alert">
@@ -107,7 +103,6 @@
 
 <main>@RenderBody()</main>
 
-<!-- ── Footer ────────────────────────────────────────────────────────────────── -->
 <footer class="footer mt-auto py-5">
     <div class="container">
         <div class="row g-4">

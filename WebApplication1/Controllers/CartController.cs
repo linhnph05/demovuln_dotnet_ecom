@@ -12,14 +12,12 @@ public class CartController : Controller
 
     public CartController(DbHelper db) => _db = db;
 
-    // ── GET /Cart ─────────────────────────────────────────────────────────────
     public IActionResult Index()
     {
         var cart = GetCart();
         return View(cart);
     }
 
-    // ── POST /Cart/Add ── VULNERABLE: Insecure Deserialization ───────────────
     [HttpPost]
     public async Task<IActionResult> Add(int productId, int quantity = 1)
     {
@@ -46,28 +44,20 @@ public class CartController : Controller
         return RedirectToAction("Index");
     }
 
-    // ── POST /Cart/Update ── VULNERABLE: Insecure Deserialization via raw JSON ─
-    /// <summary>
-    /// Accepts a raw JSON body that is deserialised with TypeNameHandling.All.
-    /// Send a ysoserial.net payload in the "cartJson" field to exploit.
-    /// </summary>
     [HttpPost]
     public IActionResult Update([FromForm] string cartJson)
     {
-        // VULNERABLE: Insecure Deserialization — TypeNameHandling.All
-        // ysoserial.net: -g ObjectDataProvider -f Json.Net -c "id" --rawcmd
         var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         try
         {
             var cart = JsonConvert.DeserializeObject<Cart>(cartJson, settings);
             if (cart != null) SaveCart(cart);
         }
-        catch { /* side-effects already triggered during deserialisation */ }
+        catch { }
 
         return RedirectToAction("Index");
     }
 
-    // ── POST /Cart/Remove ─────────────────────────────────────────────────────
     [HttpPost]
     public IActionResult Remove(int productId)
     {
@@ -77,7 +67,6 @@ public class CartController : Controller
         return RedirectToAction("Index");
     }
 
-    // ── POST /Cart/Clear ──────────────────────────────────────────────────────
     [HttpPost]
     public IActionResult Clear()
     {
@@ -85,14 +74,11 @@ public class CartController : Controller
         return RedirectToAction("Index");
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
     private Cart GetCart()
     {
         var cookieVal = Request.Cookies[CookieName];
         if (string.IsNullOrEmpty(cookieVal)) return new Cart();
 
-        // VULNERABLE: Insecure Deserialization — cart cookie is deserialised
-        // with TypeNameHandling.All allowing $type-based object instantiation.
         var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
         return JsonConvert.DeserializeObject<Cart>(cookieVal, settings) ?? new Cart();
     }
@@ -104,7 +90,7 @@ public class CartController : Controller
         Response.Cookies.Append(CookieName, json, new CookieOptions
         {
             Expires = DateTimeOffset.UtcNow.AddDays(7),
-            HttpOnly = false  // intentionally readable by JS for demo
+            HttpOnly = false 
         });
     }
 }

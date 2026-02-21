@@ -99,8 +99,6 @@ public class AccountController : Controller
                 var settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
                 var deserialized = JsonConvert.DeserializeObject(profileData, settings);
 
-                // Normal functionality: validate and normalize JSON before storing.
-                // NOTE: still intentionally vulnerable because deserialization keeps TypeNameHandling.All.
                 if (deserialized is Dictionary<string, object?> map)
                 {
                     if (!map.ContainsKey("theme")) map["theme"] = "light";
@@ -124,17 +122,6 @@ public class AccountController : Controller
         return RedirectToAction("Profile");
     }
 
-    // ── POST /Account/UploadAvatar ─────────────────────────────────────────────
-    // VULNERABLE 1 — Unrestricted File Upload:
-    //   No extension whitelist, no MIME check, no size limit enforced.
-    //   Upload shell.aspx / shell.php / shell.sh — file lands in wwwroot/uploads/avatars/
-    //   and is directly reachable at GET /uploads/avatars/shell.aspx
-    //
-    // VULNERABLE 2 — Command Injection via filename:
-    //   The original client-supplied filename is interpolated into a bash command:
-    //     file -b /app/wwwroot/uploads/avatars/<FILENAME>
-    //   Upload a file named:  x.jpg; id; #
-    //   → bash executes:      file -b x.jpg; id; #
     [HttpPost]
     public async Task<IActionResult> UploadAvatar(IFormFile avatarFile)
     {
@@ -151,66 +138,53 @@ public class AccountController : Controller
             Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
         Directory.CreateDirectory(uploadsDir);
 
-        // Use generated server-side filename to avoid collisions and traversal issues.
-        var fileName = $"{Guid.NewGuid():N}.jpg";
-        var savePath = Path.Combine(uploadsDir, fileName);
-        var tempInputPath = Path.Combine(uploadsDir, $"{Guid.NewGuid():N}{Path.GetExtension(avatarFile.FileName)}");
+        var fileName = Path.GetFileName(avatarFile.FileName);
+        var savePath  = Path.Combine(uploadsDir, fileName);
 
-        await using (var fs = new FileStream(tempInputPath, FileMode.Create))
+        await using (var fs = new FileStream(savePath, FileMode.Create))
             await avatarFile.CopyToAsync(fs);
 
-        // Resize/compress avatar to a practical web format (max 512x512 JPEG).
-        var (ok, commandOutput) = RunImageOptimizeCommand(tempInputPath, savePath);
-        System.IO.File.Delete(tempInputPath);
-
-        if (!ok)
-        {
-            TempData["Error"] = $"Could not process image. {commandOutput}";
-            return RedirectToAction("Profile");
-        }
+        var imageInfo = ProcessUploadedImage(savePath);
 
         var avatarUrl = $"/uploads/avatars/{fileName}";
-        // SQL injection also present in the UPDATE
         await _db.ExecuteNonQueryAsync(
             $"UPDATE Users SET AvatarUrl='{avatarUrl.Replace("'", "''")}' WHERE Id={userId}");
 
-        TempData["Success"] = "Avatar uploaded and optimized successfully.";
+        TempData["Success"] = $"Avatar uploaded successfully. {imageInfo}";
         return RedirectToAction("Profile");
     }
 
-    // Uses ImageMagick to optimize avatars: auto-orient, strip metadata,
-    // resize to max 512x512 and compress to quality 82 JPEG.
-    private static (bool Success, string Output) RunImageOptimizeCommand(string inputPath, string outputPath)
+    private static string ProcessUploadedImage(string filePath)
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var resize = new ProcessStartInfo
             {
-                FileName               = "magick",
+                FileName               = "/bin/bash",
+                Arguments              = $"-c \"convert {filePath} -resize 256x256^ -gravity Center -extent 256x256 {filePath} 2>&1\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError  = true,
                 UseShellExecute        = false,
                 CreateNoWindow         = true
             };
-
-            psi.ArgumentList.Add(inputPath);
-            psi.ArgumentList.Add("-auto-orient");
-            psi.ArgumentList.Add("-strip");
-            psi.ArgumentList.Add("-resize");
-            psi.ArgumentList.Add("512x512>");
-            psi.ArgumentList.Add("-quality");
-            psi.ArgumentList.Add("82");
-            psi.ArgumentList.Add(outputPath);
-
-            using var proc = Process.Start(psi)!;
-            var output = proc.StandardOutput.ReadToEnd() + proc.StandardError.ReadToEnd();
-            proc.WaitForExit(5000);
-            return (proc.ExitCode == 0, output.Trim());
+            using (var proc = Process.Start(resize)!) proc.WaitForExit(10000);
+            var identify = new ProcessStartInfo
+            {
+                FileName               = "/bin/bash",
+                Arguments              = $"-c \"identify -verbose {filePath} 2>&1 | grep -E 'Format|Geometry|Filesize'\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                UseShellExecute        = false,
+                CreateNoWindow         = true
+            };
+            using var ip = Process.Start(identify)!;
+            var info = ip.StandardOutput.ReadToEnd() + ip.StandardError.ReadToEnd();
+            ip.WaitForExit(5000);
+            return string.IsNullOrWhiteSpace(info) ? "Image resized to 256×256." : info.Trim();
         }
-        catch (Exception ex) { return (false, $"[error: {ex.Message}]"); }
+        catch (Exception ex) { return $"[error: {ex.Message}]"; }
     }
 
-    // ── GET /Account/Logout ───────────────────────────────────────────────────
     public IActionResult Logout()
     {
         HttpContext.Session.Clear();

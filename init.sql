@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS Users (
     Address TEXT,
     Phone VARCHAR(20),
     ProfileData TEXT,
-    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    AvatarUrl VARCHAR(500) DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS Products (
@@ -54,16 +55,11 @@ CREATE TABLE IF NOT EXISTS Reviews (
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add AvatarUrl column if it doesn't exist yet (idempotent migration)
-ALTER TABLE Users ADD COLUMN IF NOT EXISTS AvatarUrl VARCHAR(500) DEFAULT NULL;
-
--- Seed users (passwords stored in plaintext - vulnerable by design)
 INSERT INTO Users (Username, Email, Password, FullName, Role) VALUES
 ('admin', 'admin@shopvuln.local', 'Admin@1234', 'Site Administrator', 'admin'),
 ('alice', 'alice@example.com', 'alice123', 'Alice Johnson', 'user'),
 ('bob', 'bob@example.com', 'bob123', 'Bob Smith', 'user');
 
--- Seed products
 INSERT INTO Products (Name, Description, Price, Stock, Category, ImageUrl) VALUES
 ('Laptop Pro X1', 'Powerful 15-inch laptop with Intel Core i9, 32GB RAM, 1TB SSD. Perfect for developers and creatives.', 1299.99, 45, 'Electronics', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&q=80'),
 ('Wireless Noise-Cancelling Headphones', 'Premium over-ear headphones with 40-hour battery life and active noise cancellation.', 249.99, 120, 'Electronics', 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80'),
@@ -78,7 +74,6 @@ INSERT INTO Products (Name, Description, Price, Stock, Category, ImageUrl) VALUE
 ('Portable SSD 2TB', 'Ultra-fast 2TB portable SSD with USB 3.2 Gen 2. Up to 1050 MB/s read speed. Shock resistant.', 179.99, 60, 'Storage', 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?w=600&q=80'),
 ('LED Desk Lamp', 'Smart LED lamp with wireless charging pad, 5 color temperatures, touch dimmer and USB-A port.', 49.99, 200, 'Accessories', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80');
 
--- Seed reviews
 INSERT INTO Reviews (ProductId, UserId, Username, Rating, Comment) VALUES
 (1, 2, 'alice', 5, 'Absolutely love this laptop! Fast, reliable and the battery lasts all day.'),
 (1, 3, 'bob', 4, 'Great machine. Gets a bit warm under heavy load but performance is top-notch.'),

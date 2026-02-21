@@ -1,7 +1,4 @@
-﻿// ShopVuln — client-side helpers
-
-// ── Cart badge ─────────────────────────────────────────────────────────────────
-(function updateCartBadge() {
+﻿(function updateCartBadge() {
   try {
     const raw = document.cookie
       .split("; ")
@@ -20,11 +17,9 @@
       badge.style.display = "";
     }
   } catch {
-    /* ignore */
   }
 })();
 
-// ── Auto-dismiss alerts ────────────────────────────────────────────────────────
 document.querySelectorAll(".alert-dismissible").forEach((el) => {
   setTimeout(() => {
     const bsAlert = bootstrap?.Alert?.getOrCreateInstance?.(el);

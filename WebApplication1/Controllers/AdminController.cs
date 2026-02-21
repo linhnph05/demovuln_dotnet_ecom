@@ -13,7 +13,6 @@ public class AdminController : Controller
 
     private bool IsAdmin() => HttpContext.Session.GetString("Role") == "admin";
 
-    // ── GET /Admin ─────────────────────────────────────────────────────────────
     public async Task<IActionResult> Index()
     {
         if (!IsAdmin()) return RedirectToAction("Login", "Account");
@@ -37,17 +36,14 @@ public class AdminController : Controller
         return View();
     }
 
-    // ── POST /Admin/UpdateOrderStatus ──────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> UpdateOrderStatus(int orderId, string status)
     {
         if (!IsAdmin()) return Unauthorized();
-        // VULNERABLE: SQL Injection via status
         await _db.ExecuteNonQueryAsync($"UPDATE Orders SET Status='{status}' WHERE Id={orderId}");
         return RedirectToAction("Index");
     }
 
-    // ── POST /Admin/AddProduct ─────────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> AddProduct(string name, string description, decimal price, int stock, string category, string imageUrl)
     {
@@ -61,7 +57,6 @@ public class AdminController : Controller
         return RedirectToAction("Index");
     }
 
-    // ── POST /Admin/DeleteProduct ──────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> DeleteProduct(int id)
     {
@@ -71,11 +66,9 @@ public class AdminController : Controller
         return RedirectToAction("Index");
     }
 
-    // ── GET /Admin/Users ───────────────────────────────────────────────────────
     public async Task<IActionResult> Users()
     {
         if (!IsAdmin()) return RedirectToAction("Login", "Account");
-        // VULNERABLE: SQL Injection via search
         var search = HttpContext.Request.Query["search"].ToString();
         var sql = string.IsNullOrEmpty(search)
             ? "SELECT Id, Username, Email, FullName, Role, CreatedAt FROM Users ORDER BY CreatedAt DESC"
@@ -85,7 +78,6 @@ public class AdminController : Controller
         return View(rows);
     }
 
-    // ── GET /Admin/Tools ── Command Injection + SSTI ──────────────────────────
     [HttpGet]
     public IActionResult Tools()
     {
@@ -93,17 +85,6 @@ public class AdminController : Controller
         return View();
     }
 
-    // ── POST /Admin/PreviewTemplate ── VULNERABLE: SSTI via Razor Engine ──────
-    /// <summary>
-    /// User-supplied Razor template compiled and rendered at runtime by RazorLight.
-    /// No sandbox — full .NET API access inside @{ } code blocks.
-    ///
-    /// Payloads:
-    ///   File read : @System.IO.File.ReadAllText("/etc/passwd")
-    ///   Env vars  : @System.Environment.GetEnvironmentVariable("PATH")
-    ///   RCE       : @{ var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("/bin/bash","-c id"){RedirectStandardOutput=true,UseShellExecute=false}); }@p.StandardOutput.ReadToEnd()
-    /// </summary>
-    [HttpPost]
     public async Task<IActionResult> PreviewTemplate(string template)
     {
         if (!IsAdmin()) return Unauthorized();
@@ -116,10 +97,6 @@ public class AdminController : Controller
     {
         try
         {
-            // VULNERABLE: SSTI — user-controlled Razor template is compiled and executed
-            // by RazorLight at runtime. No sandbox. Full .NET runtime API access.
-            // A new unique key per request bypasses the compiled-template cache,
-            // ensuring the current input is always freshly compiled and run.
             var engine = new RazorLightEngineBuilder()
                 .UseEmbeddedResourcesProject(typeof(AdminController))
                 .SetOperatingAssembly(typeof(AdminController).Assembly)

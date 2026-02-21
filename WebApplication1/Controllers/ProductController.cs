@@ -10,7 +10,6 @@ public class ProductController : Controller
     private readonly DbHelper _db;
     public ProductController(DbHelper db) => _db = db;
 
-    // ── GET /Product ──────────────────────────────────────────────────────────
     public async Task<IActionResult> Index(string? category, string? sort)
     {
         var where = string.IsNullOrEmpty(category) ? "" : $"WHERE Category = '{category}'";
@@ -21,7 +20,6 @@ public class ProductController : Controller
             "newest"     => "ORDER BY CreatedAt DESC",
             _            => "ORDER BY Name ASC"
         };
-        // VULNERABLE: SQL Injection via category and sort
         var sql = $"SELECT * FROM Products {where} {order}";
         var rows = await _db.ExecuteQueryAsync(sql);
         var catRows = await _db.ExecuteQueryAsync("SELECT DISTINCT Category FROM Products ORDER BY Category");
@@ -32,7 +30,6 @@ public class ProductController : Controller
         return View(rows.Select(MapProduct).ToList());
     }
 
-    // ── GET /Product/Details/{id} ─────────────────────────────────────────────
     public async Task<IActionResult> Details(int id)
     {
         var rows = await _db.ExecuteQueryAsync($"SELECT * FROM Products WHERE Id = {id}");
@@ -56,7 +53,6 @@ public class ProductController : Controller
         return View(product);
     }
 
-    // ── POST /Product/AddReview ───────────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> AddReview(int productId, int rating, string comment)
     {
@@ -65,14 +61,12 @@ public class ProductController : Controller
 
         var username = HttpContext.Session.GetString("Username") ?? "anonymous";
 
-        // VULNERABLE: SQL Injection via comment field
         var sql = $"INSERT INTO Reviews (ProductId, UserId, Username, Rating, Comment) VALUES ({productId}, {userId}, '{username}', {rating}, '{comment}')";
         await _db.ExecuteNonQueryAsync(sql);
 
         return RedirectToAction("Details", new { id = productId });
     }
 
-    // ── POST /Product/Import — VULNERABLE: XXE ───────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Import(IFormFile xmlFile)
     {
@@ -86,11 +80,8 @@ public class ProductController : Controller
         using var reader = new System.IO.StreamReader(stream);
         var xmlContent = await reader.ReadToEndAsync();
 
-        // VULNERABLE: XXE — external entities enabled via XmlUrlResolver
-        // Payload: <!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
-        //          <products><product><name>&xxe;</name>...</product></products>
         var xmlDoc = new System.Xml.XmlDocument();
-        xmlDoc.XmlResolver = new System.Xml.XmlUrlResolver(); // enables external entities
+        xmlDoc.XmlResolver = new System.Xml.XmlUrlResolver(); 
         xmlDoc.LoadXml(xmlContent);
 
         var imported = 0;

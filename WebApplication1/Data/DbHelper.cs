@@ -2,10 +2,7 @@ using MySqlConnector;
 
 namespace WebApplication1.Data;
 
-/// <summary>
-/// Raw ADO.NET database helper.
-/// NOTE: Several methods execute unsanitised user input — intentionally vulnerable to SQL Injection.
-/// </summary>
+
 public class DbHelper
 {
     private readonly string _connectionString;
@@ -17,7 +14,6 @@ public class DbHelper
 
     public MySqlConnection GetConnection() => new(_connectionString);
 
-    // ── Vulnerable: caller is responsible for building the SQL string ──────────
     public async Task<List<Dictionary<string, object?>>> ExecuteQueryAsync(string sql)
     {
         var results = new List<Dictionary<string, object?>>();
@@ -52,12 +48,6 @@ public class DbHelper
         return result == DBNull.Value ? null : result;
     }
 
-    // ── INSERT and return auto-increment ID (same connection) ─────────────────
-    /// <summary>
-    /// Runs an INSERT statement and returns the auto-generated primary key.
-    /// Uses MySqlCommand.LastInsertedId so the ID is read on the same connection,
-    /// avoiding the LAST_INSERT_ID()=0 bug that occurs when a new connection is opened.
-    /// </summary>
     public async Task<long> ExecuteInsertAsync(string sql)
     {
         await using var conn = GetConnection();
@@ -67,7 +57,6 @@ public class DbHelper
         return cmd.LastInsertedId;
     }
 
-    // ── Safe parameterised helpers (used only where explicitly noted) ──────────
     public async Task<int> ExecuteNonQueryParamAsync(string sql, Dictionary<string, object?> parameters)
     {
         await using var conn = GetConnection();

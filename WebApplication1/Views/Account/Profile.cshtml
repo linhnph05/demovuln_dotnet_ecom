@@ -5,7 +5,6 @@
 
 <div class="container py-5">
     <div class="row g-4">
-        <!-- Sidebar -->
         <div class="col-lg-3">
             <div class="card border-0 shadow-sm text-center p-4">
                 @if (!string.IsNullOrEmpty(Model.AvatarUrl))
@@ -39,7 +38,6 @@
             </div>
         </div>
 
-        <!-- Main -->
         <div class="col-lg-9">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 pt-4 pb-0 px-4">
@@ -63,7 +61,6 @@
                 </div>
                 <div class="card-body p-4 tab-content">
 
-                    <!-- Basic info tab -->
                     <div class="tab-pane fade show active" id="infoTab">
                         <form asp-controller="Account" asp-action="Profile" method="post">
                             <input type="hidden" name="profileData" id="hiddenProfileData" value="@Model.ProfileData"/>

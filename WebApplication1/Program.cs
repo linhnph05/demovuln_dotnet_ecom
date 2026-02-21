@@ -6,7 +6,6 @@ QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add MVC with Newtonsoft.Json — TypeNameHandling.All is intentionally vulnerable (insecure deserialization)
 builder.Services.AddControllersWithViews()
     .AddNewtonsoftJson(options =>
     {
