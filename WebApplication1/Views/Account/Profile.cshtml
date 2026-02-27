@@ -9,9 +9,28 @@
             <div class="card border-0 shadow-sm text-center p-4">
                 @if (!string.IsNullOrEmpty(Model.AvatarUrl))
                 {
-                    <img src="@Model.AvatarUrl" alt="Avatar"
-                         class="rounded-circle mx-auto mb-3 border shadow-sm"
-                         style="width:80px;height:80px;object-fit:cover;"/>
+                    @if (Model.AvatarUrl.StartsWith("data:"))
+                    {
+                        <img src="@Model.AvatarUrl" alt="Avatar"
+                             class="rounded-circle mx-auto mb-3 border shadow-sm"
+                             style="width:80px;height:80px;object-fit:cover;"/>
+                    }
+                    else
+                    {
+                        <img id="avatarPreview" alt="Avatar"
+                             class="rounded-circle mx-auto mb-3 border shadow-sm"
+                             style="width:80px;height:80px;object-fit:cover;"/>
+                        <script>
+                            (function() {
+                                fetch('/Account/GetAvatarBase64?url=' + encodeURIComponent('@Model.AvatarUrl'))
+                                    .then(r => r.text())
+                                    .then(base64 => {
+                                        if (base64) document.getElementById('avatarPreview').src = base64;
+                                    })
+                                    .catch(() => {});
+                            })();
+                        </script>
+                    }
                 }
                 else
                 {
@@ -97,9 +116,28 @@
                                     @if (!string.IsNullOrEmpty(Model.AvatarUrl))
                                     {
                                         <div class="mb-3 text-center">
-                                            <img src="@Model.AvatarUrl" alt="Current avatar"
-                                                 class="rounded border shadow-sm"
-                                                 style="max-height:120px;max-width:100%;object-fit:contain;"/>
+                                            @if (Model.AvatarUrl.StartsWith("data:"))
+                                            {
+                                                <img src="@Model.AvatarUrl" alt="Current avatar"
+                                                     class="rounded border shadow-sm"
+                                                     style="max-height:120px;max-width:100%;object-fit:contain;"/>
+                                            }
+                                            else
+                                            {
+                                                <img id="avatarDetail" alt="Current avatar"
+                                                     class="rounded border shadow-sm"
+                                                     style="max-height:120px;max-width:100%;object-fit:contain;"/>
+                                                <script>
+                                                    (function() {
+                                                        fetch('/Account/GetAvatarBase64?url=' + encodeURIComponent('@Model.AvatarUrl'))
+                                                            .then(r => r.text())
+                                                            .then(base64 => {
+                                                                if (base64) document.getElementById('avatarDetail').src = base64;
+                                                            })
+                                                            .catch(() => {});
+                                                    })();
+                                                </script>
+                                            }
                                             <div class="text-muted small mt-1">Current: <code>@Model.AvatarUrl</code></div>
                                         </div>
                                     }
@@ -118,22 +156,53 @@
                                     </form>
                                 </div>
                             </div>
+                            <div class="col-md-4">
+                                <div class="card border-0 bg-light p-4 h-100">
+                                    <h6 class="fw-bold mb-3"><i class="fas fa-link me-2 text-primary"></i>Load from URL</h6>
+                                    <form asp-controller="Account" asp-action="SetAvatarFromUrl" method="post">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-semibold small">Avatar URL</label>
+                                            <input type="text" name="avatarUrl" class="form-control form-control-sm"
+                                                   placeholder="https://example.com/avatar.png"
+                                                   id="avatarUrlInput"/>
+                                            <div class="form-text">Enter any image URL to fetch and convert to base64.</div>
+                                        </div>
+                                        <button type="submit" class="btn btn-success btn-sm w-100">
+                                            <i class="fas fa-download me-1"></i>Fetch Avatar
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
 
                         </div>
                     </div>
 
                     <div class="tab-pane fade" id="advancedTab">
-                        <form asp-controller="Account" asp-action="Profile" method="post">
+                        <form asp-controller="Account" asp-action="Profile" method="post" id="preferencesForm">
                             <input type="hidden" name="fullName" value="@Model.FullName"/>
                             <input type="hidden" name="email" value="@Model.Email"/>
                             <input type="hidden" name="address" value="@Model.Address"/>
                             <input type="hidden" name="phone" value="@Model.Phone"/>
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Profile Data</label>
-                                <textarea name="profileData" class="form-control font-monospace" rows="8"
-                                          placeholder='{"theme":"light","newsletter":true}'>@Model.ProfileData</textarea>
-                                <div class="form-text">Store custom preferences in JSON format.</div>
+                            <input type="hidden" name="profileData" id="profileDataInput" value="@Model.ProfileData"/>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold" for="themeSelect">Theme</label>
+                                    <select id="themeSelect" class="form-select">
+                                        <option value="light">Light</option>
+                                        <option value="dark">Dark</option>
+                                        <option value="system">System</option>
+                                    </select>
+                                    <div class="form-text">Choose how the site looks.</div>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-center">
+                                    <div class="form-check mt-3">
+                                        <input type="checkbox" class="form-check-input" id="newsletterCheckbox">
+                                        <label class="form-check-label" for="newsletterCheckbox">Subscribe to newsletter</label>
+                                    </div>
+                                </div>
                             </div>
+
                             <button type="submit" class="btn btn-primary px-4">
                                 <i class="fas fa-save me-2"></i>Save Preferences
                             </button>
@@ -145,5 +214,75 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const form = document.getElementById('preferencesForm');
+            if (!form) return;
+
+            const profileInput = document.getElementById('profileDataInput');
+            const themeSelect = document.getElementById('themeSelect');
+            const newsletterCheckbox = document.getElementById('newsletterCheckbox');
+
+            function loadInitialPreferences() {
+                if (!profileInput || !profileInput.value) {
+                    return;
+                }
+                try {
+                    const data = JSON.parse(profileInput.value);
+                    if (data && typeof data === 'object') {
+                        if (data.theme && themeSelect) {
+                            themeSelect.value = data.theme;
+                        }
+                        if (typeof data.newsletter === 'boolean' && newsletterCheckbox) {
+                            newsletterCheckbox.checked = data.newsletter;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore malformed JSON and keep defaults
+                }
+            }
+
+            function updateProfileData() {
+                if (!profileInput) return;
+
+                let current = {};
+                if (profileInput.value) {
+                    try {
+                        const parsed = JSON.parse(profileInput.value);
+                        if (parsed && typeof parsed === 'object') {
+                            current = parsed;
+                        }
+                    } catch (e) {
+                        current = {};
+                    }
+                }
+
+                if (themeSelect) {
+                    current.theme = themeSelect.value;
+                }
+                if (newsletterCheckbox) {
+                    current.newsletter = !!newsletterCheckbox.checked;
+                }
+
+                profileInput.value = JSON.stringify(current);
+            }
+
+            loadInitialPreferences();
+
+            if (themeSelect) {
+                themeSelect.addEventListener('change', updateProfileData);
+            }
+            if (newsletterCheckbox) {
+                newsletterCheckbox.addEventListener('change', updateProfileData);
+            }
+
+            form.addEventListener('submit', function () {
+                updateProfileData();
+            });
+        })();
+    </script>
+}
 
 

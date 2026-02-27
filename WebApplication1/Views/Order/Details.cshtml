@@ -126,15 +126,7 @@
             <form asp-controller="Order" asp-action="DownloadInvoice" method="post">
                 <div class="modal-body">
                     <input type="hidden" name="orderId" value="@Model.Id"/>
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">
-                            Custom Logo URL <span class="text-muted fw-normal small">(optional)</span>
-                        </label>
-                        <input type="text" name="logoUrl" id="logoUrlInput"
-                               class="form-control"
-                               placeholder="https://example.com/logo.png"/>
-                        <div class="form-text">Enter a URL to use a custom logo on your invoice, or leave blank for the default.</div>
-                    </div>
+                    <p class="text-muted">Click the button below to generate and download a PDF invoice for this order.</p>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>

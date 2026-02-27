@@ -1,8 +1,6 @@
 using Newtonsoft.Json;
-using QuestPDF.Infrastructure;
 using WebApplication1.Data;
 
-QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 

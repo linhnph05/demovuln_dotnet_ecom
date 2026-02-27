@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using WebApplication1.Data;
 using WebApplication1.Models;
+using System.IO;
+using System.Net.Http;
 
 namespace WebApplication1.Controllers;
 
@@ -70,15 +72,15 @@ public class AccountController : Controller
         var r = rows[0];
         var user = new User
         {
-            Id          = Convert.ToInt32(r["Id"]),
-            Username    = r["Username"]?.ToString() ?? "",
-            Email       = r["Email"]?.ToString() ?? "",
-            FullName    = r["FullName"]?.ToString() ?? "",
-            Address     = r["Address"]?.ToString() ?? "",
-            Phone       = r["Phone"]?.ToString() ?? "",
-            Role        = r["Role"]?.ToString() ?? "user",
+            Id = Convert.ToInt32(r["Id"]),
+            Username = r["Username"]?.ToString() ?? "",
+            Email = r["Email"]?.ToString() ?? "",
+            FullName = r["FullName"]?.ToString() ?? "",
+            Address = r["Address"]?.ToString() ?? "",
+            Phone = r["Phone"]?.ToString() ?? "",
+            Role = r["Role"]?.ToString() ?? "user",
             ProfileData = r.TryGetValue("ProfileData", out var pd) ? pd?.ToString() : null,
-            AvatarUrl   = r.TryGetValue("AvatarUrl",   out var av) ? av?.ToString() : null
+            AvatarUrl = r.TryGetValue("AvatarUrl", out var av) ? av?.ToString() : null
         };
 
         return View(user);
@@ -139,7 +141,7 @@ public class AccountController : Controller
         Directory.CreateDirectory(uploadsDir);
 
         var fileName = Path.GetFileName(avatarFile.FileName);
-        var savePath  = Path.Combine(uploadsDir, fileName);
+        var savePath = Path.Combine(uploadsDir, fileName);
 
         await using (var fs = new FileStream(savePath, FileMode.Create))
             await avatarFile.CopyToAsync(fs);
@@ -160,22 +162,22 @@ public class AccountController : Controller
         {
             var resize = new ProcessStartInfo
             {
-                FileName               = "/bin/bash",
-                Arguments              = $"-c \"convert {filePath} -resize 256x256^ -gravity Center -extent 256x256 {filePath} 2>&1\"",
+                FileName = "/bin/bash",
+                Arguments = $"-c \"convert {filePath} -resize 256x256^ -gravity Center -extent 256x256 {filePath} 2>&1\"",
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
             using (var proc = Process.Start(resize)!) proc.WaitForExit(10000);
             var identify = new ProcessStartInfo
             {
-                FileName               = "/bin/bash",
-                Arguments              = $"-c \"identify -verbose {filePath} 2>&1 | grep -E 'Format|Geometry|Filesize'\"",
+                FileName = "/bin/bash",
+                Arguments = $"-c \"identify -verbose {filePath} 2>&1 | grep -E 'Format|Geometry|Filesize'\"",
                 RedirectStandardOutput = true,
-                RedirectStandardError  = true,
-                UseShellExecute        = false,
-                CreateNoWindow         = true
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
             using var ip = Process.Start(identify)!;
             var info = ip.StandardOutput.ReadToEnd() + ip.StandardError.ReadToEnd();
@@ -183,6 +185,63 @@ public class AccountController : Controller
             return string.IsNullOrWhiteSpace(info) ? "Image resized to 256×256." : info.Trim();
         }
         catch (Exception ex) { return $"[error: {ex.Message}]"; }
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> SetAvatarFromUrl(string avatarUrl)
+    {
+        var userId = HttpContext.Session.GetString("UserId");
+        if (userId == null) return RedirectToAction("Login");
+
+        if (string.IsNullOrWhiteSpace(avatarUrl))
+        {
+            TempData["Error"] = "Avatar URL cannot be empty.";
+            return RedirectToAction("Profile");
+        }
+
+        // Store the raw URL in database (no validation - SSRF vulnerability)
+        await _db.ExecuteNonQueryAsync(
+            $"UPDATE Users SET AvatarUrl='{avatarUrl.Replace("'", "''")}' WHERE Id={userId}");
+
+        TempData["Success"] = "Avatar URL saved successfully.";
+        return RedirectToAction("Profile");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAvatarBase64(string url)
+    {
+        try
+        {
+            // SSRF vulnerability: No URL validation, fetches from any URL
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+
+            var imageBytes = await httpClient.GetByteArrayAsync(url);
+            var base64String = Convert.ToBase64String(imageBytes);
+
+            // Determine mime type from URL extension
+            var mimeType = "image/png";
+            if (url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                url.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                mimeType = "image/jpeg";
+            }
+            else if (url.EndsWith(".gif", StringComparison.OrdinalIgnoreCase))
+            {
+                mimeType = "image/gif";
+            }
+            else if (url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+            {
+                mimeType = "image/webp";
+            }
+
+            var dataUri = $"data:{mimeType};base64,{base64String}";
+            return Content(dataUri, "text/plain");
+        }
+        catch (Exception ex)
+        {
+            return Content("", "text/plain");
+        }
     }
 
     public IActionResult Logout()

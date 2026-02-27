@@ -1,10 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using PuppeteerSharp;
 using WebApplication1.Data;
 using WebApplication1.Models;
+using System.Net.Http;
 
 namespace WebApplication1.Controllers;
 
@@ -20,20 +19,20 @@ public class OrderController : Controller
 
         var where = string.IsNullOrEmpty(status)
             ? $"WHERE UserId = {userId}"
-            : $"WHERE UserId = {userId} AND Status = '{status}'";  
+            : $"WHERE UserId = {userId} AND Status = '{status}'";
 
         var sql = $"SELECT * FROM Orders {where} ORDER BY CreatedAt DESC";
         var rows = await _db.ExecuteQueryAsync(sql);
 
         var orders = rows.Select(r => new Order
         {
-            Id              = Convert.ToInt32(r["Id"]),
-            UserId          = Convert.ToInt32(r["UserId"]),
-            TotalAmount     = Convert.ToDecimal(r["TotalAmount"]),
-            Status          = r["Status"]?.ToString() ?? "",
+            Id = Convert.ToInt32(r["Id"]),
+            UserId = Convert.ToInt32(r["UserId"]),
+            TotalAmount = Convert.ToDecimal(r["TotalAmount"]),
+            Status = r["Status"]?.ToString() ?? "",
             ShippingAddress = r["ShippingAddress"]?.ToString() ?? "",
-            Notes           = r["Notes"]?.ToString(),
-            CreatedAt       = Convert.ToDateTime(r["CreatedAt"])
+            Notes = r["Notes"]?.ToString(),
+            CreatedAt = Convert.ToDateTime(r["CreatedAt"])
         }).ToList();
 
         ViewBag.CurrentStatus = status;
@@ -51,24 +50,24 @@ public class OrderController : Controller
         var r = rows[0];
         var order = new Order
         {
-            Id              = Convert.ToInt32(r["Id"]),
-            UserId          = Convert.ToInt32(r["UserId"]),
-            TotalAmount     = Convert.ToDecimal(r["TotalAmount"]),
-            Status          = r["Status"]?.ToString() ?? "",
+            Id = Convert.ToInt32(r["Id"]),
+            UserId = Convert.ToInt32(r["UserId"]),
+            TotalAmount = Convert.ToDecimal(r["TotalAmount"]),
+            Status = r["Status"]?.ToString() ?? "",
             ShippingAddress = r["ShippingAddress"]?.ToString() ?? "",
-            Notes           = r["Notes"]?.ToString(),
-            CreatedAt       = Convert.ToDateTime(r["CreatedAt"])
+            Notes = r["Notes"]?.ToString(),
+            CreatedAt = Convert.ToDateTime(r["CreatedAt"])
         };
 
         var itemRows = await _db.ExecuteQueryAsync($"SELECT * FROM OrderItems WHERE OrderId = {id}");
         order.Items = itemRows.Select(ir => new OrderItem
         {
-            Id          = Convert.ToInt32(ir["Id"]),
-            OrderId     = id,
-            ProductId   = Convert.ToInt32(ir["ProductId"]),
+            Id = Convert.ToInt32(ir["Id"]),
+            OrderId = id,
+            ProductId = Convert.ToInt32(ir["ProductId"]),
             ProductName = ir["ProductName"]?.ToString() ?? "",
-            Quantity    = Convert.ToInt32(ir["Quantity"]),
-            UnitPrice   = Convert.ToDecimal(ir["UnitPrice"])
+            Quantity = Convert.ToInt32(ir["Quantity"]),
+            UnitPrice = Convert.ToDecimal(ir["UnitPrice"])
         }).ToList();
 
         return View(order);
@@ -95,8 +94,8 @@ public class OrderController : Controller
             return RedirectToAction("Index", "Cart");
         }
 
-        var addr  = shippingAddress.Replace("'", "''");
-        var note  = notes?.Replace("'", "''") ?? "";
+        var addr = shippingAddress.Replace("'", "''");
+        var note = notes?.Replace("'", "''") ?? "";
         var total = cart.Total;
 
         var orderSql = $"INSERT INTO Orders (UserId, TotalAmount, Status, ShippingAddress, Notes) VALUES ({userId}, {total}, 'Pending', '{addr}', '{note}')";
@@ -114,7 +113,7 @@ public class OrderController : Controller
     }
 
     [HttpPost]
-    public async Task<IActionResult> DownloadInvoice(int orderId, string? logoUrl)
+    public async Task<IActionResult> DownloadInvoice(int orderId)
     {
         var userId = HttpContext.Session.GetString("UserId");
         if (userId == null) return Unauthorized();
@@ -125,185 +124,109 @@ public class OrderController : Controller
         var r = rows[0];
         var order = new Order
         {
-            Id              = Convert.ToInt32(r["Id"]),
-            TotalAmount     = Convert.ToDecimal(r["TotalAmount"]),
-            Status          = r["Status"]?.ToString() ?? "",
+            Id = Convert.ToInt32(r["Id"]),
+            TotalAmount = Convert.ToDecimal(r["TotalAmount"]),
+            Status = r["Status"]?.ToString() ?? "",
             ShippingAddress = r["ShippingAddress"]?.ToString() ?? "",
-            Notes           = r["Notes"]?.ToString(),
-            CreatedAt       = Convert.ToDateTime(r["CreatedAt"])
+            Notes = r["Notes"]?.ToString(),
+            CreatedAt = Convert.ToDateTime(r["CreatedAt"])
         };
 
         var itemRows = await _db.ExecuteQueryAsync($"SELECT * FROM OrderItems WHERE OrderId = {orderId}");
         order.Items = itemRows.Select(ir => new OrderItem
         {
             ProductName = ir["ProductName"]?.ToString() ?? "",
-            Quantity    = Convert.ToInt32(ir["Quantity"]),
-            UnitPrice   = Convert.ToDecimal(ir["UnitPrice"])
+            Quantity = Convert.ToInt32(ir["Quantity"]),
+            UnitPrice = Convert.ToDecimal(ir["UnitPrice"])
         }).ToList();
 
-        byte[] logoBytes  = [];
-        string ssrfStatus = "No logo URL provided.";
-        string remoteBody = "";
+        var logoHtml = "<div style='width:80px;height:55px;background:#6c63ff;display:flex;align-items:center;justify-content:center;color:white;font-size:18px;font-weight:bold;'>SV</div>";
 
-        if (!string.IsNullOrEmpty(logoUrl))
+        var itemsHtml = string.Join("", order.Items.Select((item, idx) =>
         {
-            try
-            {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                var resp     = await http.GetAsync(logoUrl);                         
-                var rawBytes = await resp.Content.ReadAsByteArrayAsync();
-                var ct       = resp.Content.Headers.ContentType?.MediaType ?? "";
-                ssrfStatus   = $"HTTP {(int)resp.StatusCode} {resp.StatusCode} | {rawBytes.Length} bytes | {ct}";
+            var bg = idx % 2 == 0 ? "#fff" : "#f8fafc";
+            return $@"<tr style='background:{bg}'>
+                <td style='padding:7px;border-bottom:1px solid #e2e8f0'>{item.ProductName}</td>
+                <td style='padding:7px;text-align:center;border-bottom:1px solid #e2e8f0'>{item.Quantity}</td>
+                <td style='padding:7px;text-align:right;border-bottom:1px solid #e2e8f0'>${item.UnitPrice:N2}</td>
+                <td style='padding:7px;text-align:right;border-bottom:1px solid #e2e8f0'>${item.Quantity * item.UnitPrice:N2}</td>
+            </tr>";
+        }));
 
-                if (ct.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-                    logoBytes = rawBytes;
-                else
-                    remoteBody = System.Text.Encoding.UTF8.GetString(rawBytes);
-            }
-            catch (Exception ex)
-            {
-                ssrfStatus = $"[{ex.GetType().Name}] {ex.Message}";
-                remoteBody = ex.ToString();
-            }
-        }
+        var invoiceData = $@"<!DOCTYPE html>
+<html><head><meta charset='utf-8'/><style>body{{font-family:Arial,sans-serif;font-size:11px;margin:50px}}</style></head><body>
+<div style='display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;border-bottom:1px solid #e2e8f0;padding-bottom:10px'>
+  <div style='display:flex;gap:16px'>{logoHtml}
+    <div><div style='font-size:24px;font-weight:bold;color:#0f172a'>INVOICE</div>
+    <div style='color:#6c63ff'>#{order.Id:D6}</div></div>
+  </div>
+  <div style='text-align:right;font-size:9px;color:#64748b'>
+    <div>Date: {order.CreatedAt:yyyy-MM-dd}</div><div>Status: {order.Status}</div>
+  </div>
+</div>
+<div style='background:#f8fafc;padding:10px;margin-bottom:16px'>
+  <div style='font-weight:bold;font-size:9px;color:#64748b'>BILL TO</div>
+  <div style='margin-top:4px'>{order.ShippingAddress}</div>
+</div>
+<table style='width:100%;border-collapse:collapse;margin-bottom:10px'>
+  <thead><tr style='background:#0f172a;color:white'>
+    <th style='padding:7px;text-align:left;font-size:10px'>Product</th>
+    <th style='padding:7px;text-align:center;font-size:10px'>Qty</th>
+    <th style='padding:7px;text-align:right;font-size:10px'>Unit Price</th>
+    <th style='padding:7px;text-align:right;font-size:10px'>Total</th>
+  </tr></thead>
+  <tbody>{itemsHtml}</tbody>
+</table>
+<div style='text-align:right;margin-bottom:20px'>
+  <div style='display:inline-block;width:220px'>
+    <div style='display:flex;justify-content:space-between;padding:3px 0;color:#64748b'><span>Subtotal</span><span>${order.TotalAmount:N2}</span></div>
+    <div style='display:flex;justify-content:space-between;padding:3px 0;color:#64748b'><span>Shipping</span><span style='color:#16a34a'>FREE</span></div>
+    <div style='border-top:1px solid #e2e8f0;margin:3px 0'></div>
+    <div style='display:flex;justify-content:space-between;padding:3px 0;font-weight:bold;font-size:13px'><span>Total</span><span style='color:#6c63ff'>${order.TotalAmount:N2}</span></div>
+  </div>
+</div>
+<div style='text-align:center;font-size:8px;color:#94a3b8;margin-top:30px'>ShopVuln Store · Invoice #{order.Id:D6}</div>
+</body></html>";
 
-        var pdf = Document.Create(container =>
+        try
         {
-            container.Page(page =>
+            // Launch browser with Chrome installed in Docker container
+            var browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
-                page.Size(PageSizes.A4);
-                page.Margin(50);
-                page.DefaultTextStyle(x => x.FontSize(11));
-
-                page.Header().Column(hdr =>
-                {
-                    hdr.Item().Row(hRow =>
-                    {
-                        if (logoBytes.Length > 0)
-                            hRow.ConstantItem(80).Height(55).Image(logoBytes).FitArea();
-                        else
-                            hRow.ConstantItem(80).Height(55)
-                                .Background("#6c63ff").AlignCenter().AlignMiddle()
-                                .DefaultTextStyle(x => x.FontSize(18).Bold().FontColor("#ffffff"))
-                                .Text("SV");
-
-                        hRow.RelativeItem().PaddingLeft(16).Column(c =>
-                        {
-                            c.Item().DefaultTextStyle(x => x.FontSize(24).Bold().FontColor("#0f172a")).Text("INVOICE");
-                            c.Item().DefaultTextStyle(x => x.FontColor("#6c63ff")).Text($"#{order.Id:D6}");
-                        });
-
-                        hRow.ConstantItem(140).AlignRight().Column(c =>
-                        {
-                            c.Item().DefaultTextStyle(x => x.FontSize(9).FontColor("#64748b")).Text($"Date:   {order.CreatedAt:yyyy-MM-dd}");
-                            c.Item().DefaultTextStyle(x => x.FontSize(9).FontColor("#64748b")).Text($"Status: {order.Status}");
-                        });
-                    });
-                    hdr.Item().PaddingTop(8).LineHorizontal(1).LineColor("#e2e8f0");
-                });
-
-                page.Content().PaddingTop(16).Column(col =>
-                {
-                    col.Item().Background("#f8fafc").Padding(10).Column(bt =>
-                    {
-                        bt.Item().DefaultTextStyle(x => x.Bold().FontSize(9).FontColor("#64748b")).Text("BILL TO");
-                        bt.Item().PaddingTop(4).Text(order.ShippingAddress);
-                    });
-
-                    col.Item().PaddingTop(16).Table(table =>
-                    {
-                        table.ColumnsDefinition(cols =>
-                        {
-                            cols.RelativeColumn(4);
-                            cols.RelativeColumn(1);
-                            cols.RelativeColumn(2);
-                            cols.RelativeColumn(2);
-                        });
-
-                        table.Header(h =>
-                        {
-                            h.Cell().Background("#0f172a").Padding(7)
-                                .DefaultTextStyle(x => x.Bold().FontColor("#ffffff").FontSize(10)).Text("Product");
-                            h.Cell().Background("#0f172a").Padding(7).AlignCenter()
-                                .DefaultTextStyle(x => x.Bold().FontColor("#ffffff").FontSize(10)).Text("Qty");
-                            h.Cell().Background("#0f172a").Padding(7).AlignRight()
-                                .DefaultTextStyle(x => x.Bold().FontColor("#ffffff").FontSize(10)).Text("Unit Price");
-                            h.Cell().Background("#0f172a").Padding(7).AlignRight()
-                                .DefaultTextStyle(x => x.Bold().FontColor("#ffffff").FontSize(10)).Text("Total");
-                        });
-
-                        var rowIdx = 0;
-                        foreach (var item in order.Items)
-                        {
-                            var bg = rowIdx++ % 2 == 0 ? "#ffffff" : "#f8fafc";
-                            table.Cell().Background(bg).BorderBottom(1).BorderColor("#e2e8f0").Padding(7).Text(item.ProductName);
-                            table.Cell().Background(bg).BorderBottom(1).BorderColor("#e2e8f0").Padding(7).AlignCenter().Text(item.Quantity.ToString());
-                            table.Cell().Background(bg).BorderBottom(1).BorderColor("#e2e8f0").Padding(7).AlignRight().Text($"${item.UnitPrice:N2}");
-                            table.Cell().Background(bg).BorderBottom(1).BorderColor("#e2e8f0").Padding(7).AlignRight().Text($"${item.Quantity * item.UnitPrice:N2}");
-                        }
-                    });
-
-                    col.Item().PaddingTop(10).AlignRight().Width(220).Column(totals =>
-                    {
-                        totals.Item().PaddingVertical(3).Row(tr =>
-                        {
-                            tr.RelativeItem().DefaultTextStyle(x => x.FontColor("#64748b")).Text("Subtotal");
-                            tr.ConstantItem(90).AlignRight().Text($"${order.TotalAmount:N2}");
-                        });
-                        totals.Item().PaddingVertical(3).Row(tr =>
-                        {
-                            tr.RelativeItem().DefaultTextStyle(x => x.FontColor("#64748b")).Text("Shipping");
-                            tr.ConstantItem(90).AlignRight().DefaultTextStyle(x => x.FontColor("#16a34a")).Text("FREE");
-                        });
-                        totals.Item().LineHorizontal(1).LineColor("#e2e8f0");
-                        totals.Item().PaddingVertical(3).Row(tr =>
-                        {
-                            tr.RelativeItem().DefaultTextStyle(x => x.Bold().FontSize(13)).Text("Total");
-                            tr.ConstantItem(90).AlignRight()
-                                .DefaultTextStyle(x => x.Bold().FontSize(13).FontColor("#6c63ff"))
-                                .Text($"${order.TotalAmount:N2}");
-                        });
-                    });
-
-                    if (!string.IsNullOrEmpty(logoUrl))
-                    {
-                        col.Item().PaddingTop(24).LineHorizontal(1).LineColor("#fca5a5");
-                        col.Item().PaddingTop(8).Background("#fef2f2").Padding(12).Column(s =>
-                        {
-                            s.Item().DefaultTextStyle(x => x.Bold().FontSize(10).FontColor("#dc2626"))
-                                    .Text("Hello");
-                            s.Item().PaddingTop(4).DefaultTextStyle(x => x.FontSize(8).FontColor("#475569"))
-                                    .Text($"URL:    {logoUrl}");
-                            s.Item().DefaultTextStyle(x => x.FontSize(8).FontColor("#475569"))
-                                    .Text($"Status: {ssrfStatus}");
-                            if (!string.IsNullOrEmpty(remoteBody))
-                            {
-                                s.Item().PaddingTop(6).DefaultTextStyle(x => x.Bold().FontSize(9).FontColor("#64748b"))
-                                        .Text("Response Body:");
-                                var truncated = remoteBody.Length > 3000
-                                    ? remoteBody[..3000] + "\n\n...[truncated]"
-                                    : remoteBody;
-                                s.Item().PaddingTop(4).Background("#fff1f2").Padding(8)
-                                        .DefaultTextStyle(x => x.FontSize(7.5f).FontColor("#1e293b"))
-                                        .Text(truncated);
-                            }
-                        });
-                    }
-                });
-
-                page.Footer().AlignCenter().Text(t =>
-                {
-                    t.Span("ShopVuln Store  ·  Invoice ").FontSize(8).FontColor("#94a3b8");
-                    t.Span($"#{order.Id:D6}").FontSize(8).FontColor("#94a3b8");
-                    t.Span("  ·  Page ").FontSize(8).FontColor("#94a3b8");
-                    t.CurrentPageNumber().FontSize(8).FontColor("#94a3b8");
-                    t.Span(" of ").FontSize(8).FontColor("#94a3b8");
-                    t.TotalPages().FontSize(8).FontColor("#94a3b8");
-                });
+                Headless = true,
+                ExecutablePath = "/usr/bin/google-chrome-stable",
+                Args = new[] {
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-accelerated-2d-canvas",
+                    "--no-first-run",
+                    "--no-zygote",
+                    "--disable-gpu"
+                }
             });
-        }).GeneratePdf();
 
-        return File(pdf, "application/pdf", $"invoice-{orderId}.pdf");
+            var page = await browser.NewPageAsync();
+
+            // Set content from invoice data
+            await page.SetContentAsync(invoiceData);
+
+            // Generate PDF
+            var pdf = await page.PdfDataAsync(new PdfOptions
+            {
+                Format = PuppeteerSharp.Media.PaperFormat.A4,
+                PrintBackground = true
+            });
+
+            await browser.CloseAsync();
+
+            return File(pdf, "application/pdf", $"invoice-{orderId}.pdf");
+        }
+        catch (Exception error)
+        {
+            Console.WriteLine(error);
+            return StatusCode(500, "PDF generation failed");
+        }
     }
 
     [HttpGet]
@@ -341,7 +264,7 @@ public class OrderController : Controller
         sb.AppendLine($"  {new string('-', 58)}");
         foreach (var ir in itemRows)
         {
-            var qty   = Convert.ToInt32(ir["Quantity"]);
+            var qty = Convert.ToInt32(ir["Quantity"]);
             var price = Convert.ToDecimal(ir["UnitPrice"]);
             sb.AppendLine($"  {ir["ProductName"],-30} {qty,4}  {$"${price:N2}",10}  {$"${qty * price:N2}",10}");
         }
