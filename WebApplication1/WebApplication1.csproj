@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
     <PropertyGroup>
-        <!-- <TargetFramework>net9.0</TargetFramework> -->
-        <TargetFramework>net9.0-windows</TargetFramework>
-		<UseWPF>true</UseWPF>
+        <TargetFramework>net9.0</TargetFramework>
+        <!-- <TargetFramework>net9.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF> -->
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <PreserveCompilationContext>true</PreserveCompilationContext>

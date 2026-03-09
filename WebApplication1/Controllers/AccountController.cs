@@ -5,6 +5,7 @@ using WebApplication1.Data;
 using WebApplication1.Models;
 using System.IO;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 
 namespace WebApplication1.Controllers;
 
@@ -12,6 +13,34 @@ public class AccountController : Controller
 {
     private readonly DbHelper _db;
     public AccountController(DbHelper db) => _db = db;
+
+    private bool DetectSQLInjection(string input)
+    {
+        // if (string.IsNullOrEmpty(input)) return false;
+
+        // if (Regex.IsMatch(input,
+        //     @"\b(union|select|insert|update|delete|drop|alter|create|truncate|" +
+        //     @"exec|execute|xp_|sleep|benchmark|waitfor|concat|char|hex|unhex|" +
+        //     @"substr|substring|ascii|ord|conv|extractvalue|updatexml|load_file|" +
+        //     @"into\s+(outfile|dumpfile)|information_schema|database|schema|" +
+        //     @"Users|administrator)\b",
+        //     RegexOptions.IgnoreCase))
+        //     return true;
+
+        // //  ' or '   " or 1   1 and '   3 or 2
+        // if (Regex.IsMatch(input,
+        //     @"['""\d]\s*\b(or|and)\b\s*['""\d]",
+        //     RegexOptions.IgnoreCase))
+        //     return true;
+
+        // if (input.Contains("--") || input.Contains("#"))
+        //     return true;
+
+        // if (input.Contains(";"))
+        //     return true;
+
+        return false;
+    }
 
     [HttpGet]
     public IActionResult Login(string? returnUrl)
@@ -23,6 +52,14 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Login(string username, string password, string? returnUrl)
     {
+        // WAF Check
+        if (DetectSQLInjection(username) || DetectSQLInjection(password))
+        {
+            ViewBag.Error = "Potential security threat detected. Request blocked by WAF.";
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
+
         var sql = $"SELECT * FROM Users WHERE Username = '{username}' AND Password = '{password}'";
         var rows = await _db.ExecuteQueryAsync(sql);
 
